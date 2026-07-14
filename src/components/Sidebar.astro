@@ -1,0 +1,90 @@
+---
+import { Icon } from 'astro-icon/components';
+import { buildNav, type NavPage } from '../lib/nav';
+
+const nav = await buildNav();
+const here = Astro.url.pathname.replace(/\/$/, '');
+const isActive = (page: NavPage) => page.href.replace(/\/$/, '') === here;
+---
+
+{/* data-pagefind-ignore: nav text must not pollute search results. */}
+<nav data-pagefind-ignore aria-label="Subjects" class="text-sm">
+  <ul class="space-y-1">
+    {
+      nav.map((subject) => (
+        <li>
+          <details open={subject.pages.some(isActive)} class="group">
+            <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-2 py-1.5 font-semibold text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
+              <Icon
+                name="lucide:chevron-right"
+                class="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90"
+              />
+              <Icon
+                name={`lucide:${subject.icon}`}
+                class="size-4 shrink-0 text-brand-600 dark:text-brand-100"
+              />
+              <span class="flex-1">{subject.title}</span>
+              <span class="tabular-nums text-xs font-normal text-slate-400">
+                {subject.pages.length}
+              </span>
+            </summary>
+
+            <ul class="mt-1 ml-3 space-y-0.5 border-l border-slate-200 pl-3 dark:border-slate-800">
+              {subject.items.map((item) =>
+                item.kind === 'page' ? (
+                  <li>
+                    <a
+                      href={item.href}
+                      aria-current={isActive(item) ? 'page' : undefined}
+                      class:list={[
+                        'block rounded-md px-2 py-1',
+                        isActive(item)
+                          ? 'bg-brand-50 font-medium text-brand-700 dark:bg-slate-800 dark:text-brand-100'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                      ]}
+                    >
+                      {item.title}
+                    </a>
+                  </li>
+                ) : (
+                  <li>
+                    {/* A section: one more collapsible level, open when it holds the current page. */}
+                    <details open={item.pages.some(isActive)} class="group/section">
+                      <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+                        <Icon
+                          name="lucide:chevron-right"
+                          class="size-3.5 shrink-0 text-slate-400 transition-transform group-open/section:rotate-90"
+                        />
+                        <Icon name={`lucide:${item.icon}`} class="size-3.5 shrink-0 text-slate-400" />
+                        <span class="flex-1">{item.title}</span>
+                      </summary>
+
+                      <ul class="mt-0.5 ml-2.5 space-y-0.5 border-l border-slate-200 pl-3 dark:border-slate-800">
+                        {item.pages.map((page) => (
+                          <li>
+                            <a
+                              href={page.href}
+                              aria-current={isActive(page) ? 'page' : undefined}
+                              class:list={[
+                                'block rounded-md px-2 py-1',
+                                isActive(page)
+                                  ? 'bg-brand-50 font-medium text-brand-700 dark:bg-slate-800 dark:text-brand-100'
+                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                              ]}
+                            >
+                              {page.title}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </li>
+                ),
+              )}
+            </ul>
+          </details>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

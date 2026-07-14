@@ -1,0 +1,79 @@
+---
+title: Cluster architecture
+order: 1
+summary: What the control plane does, what the nodes do, and why every change flows through the API server.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+A Kubernetes cluster splits into two halves. The **control plane** decides what
+*should* be running. The **nodes** actually run it. Nothing talks to nodes
+directly — every instruction is a record written to the API server, and every
+component reacts to those records.
+
+## The flow of a `kubectl apply`
+
+<Diagram
+  caption="A Deployment being applied: each component only reads and writes API objects."
+  chart={`flowchart LR
+  kubectl[kubectl] -->|POST Deployment| api[API server]
+  api <-->|persist| etcd[(etcd)]
+  api --> cm[Controller manager]
+  cm -->|creates Pods| api
+  api --> sched[Scheduler]
+  sched -->|binds Pod to node| api
+  api --> kubelet[kubelet on node]
+  kubelet -->|starts container| cri[Container runtime]
+  cri --> pod([Pod])`}
+/>
+
+Read that diagram as a loop, not a pipeline. The scheduler does not *tell* the
+kubelet anything; it writes `spec.nodeName` on the Pod, and the kubelet on that
+node notices a Pod assigned to it and acts. This is the **reconciliation loop**,
+and it's the single idea the rest of Kubernetes is built on:
+
+> Compare desired state (the spec) to observed state (the status). Take one step
+> to close the gap. Repeat forever.
+
+## The components
+
+| Component | Runs on | Job |
+| --- | --- | --- |
+| API server | Control plane | The only thing that talks to etcd. Validates, authenticates, serves the REST API. |
+| etcd | Control plane | Consistent key-value store. The cluster's entire state. |
+| Scheduler | Control plane | Picks a node for each unbound Pod, based on resource requests, affinities and taints. |
+| Controller manager | Control plane | Runs the built-in controllers (Deployment, ReplicaSet, Node, Job…). |
+| kubelet | Every node | Makes reality match the Pods assigned to its node. Reports status back. |
+| kube-proxy | Every node | Programs the node's network rules so Service IPs route to Pods. |
+
+Because state lives *only* in etcd behind the API server, a control plane
+component can crash and restart with no loss: it re-reads the world and carries
+on reconciling. That's also why "just SSH in and start a container" is invisible
+to the cluster — no API object, no reconciliation.
+
+## Vocabulary check
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'A Pod is stuck in Pending. Which component is failing to do its job?',
+      back: 'The scheduler — Pending means the Pod exists but has no node bound to it. Usually no node satisfies its resource requests, affinities, or tolerations.',
+    },
+    {
+      front: 'Which component is the only one that writes to etcd?',
+      back: 'The API server. Everything else reads and writes API objects through it, which is what makes the state consistent.',
+    },
+    {
+      front: 'What does the kubelet reconcile?',
+      back: 'The Pods bound to its own node. It watches for Pods with spec.nodeName == itself, and drives the container runtime until reality matches.',
+    },
+    {
+      front: 'Why is Kubernetes called "declarative"?',
+      back: 'You submit desired state, not commands. Controllers continuously compare desired to observed and take steps to close the gap.',
+    },
+  ]}
+/>
+
+Next: how Pods get grouped into things you'd actually deploy.

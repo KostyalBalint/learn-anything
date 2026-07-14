@@ -1,0 +1,15 @@
+---
+// astro-pagefind's config element points the UI at `${BASE_URL}/pagefind/`, so
+// the index is fetched from the right place under the GitHub Pages base path.
+import PagefindConfig from 'astro-pagefind/components/PagefindConfig.astro';
+---
+
+{/* The trigger owns the Cmd/Ctrl+K binding (`shortcut="mod+k"` is its default).
+    flex + items-center: the modal and config elements are siblings of the trigger
+    inside this wrapper, so without it the wrapper's box skews the trigger off the
+    header's centre line. */}
+<div data-pagefind-ignore class="pagefind-ui flex items-center">
+  <PagefindConfig />
+  <pagefind-modal-trigger shortcut="mod+k" placeholder="Search"></pagefind-modal-trigger>
+  <pagefind-modal></pagefind-modal>
+</div>

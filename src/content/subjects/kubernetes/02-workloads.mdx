@@ -1,0 +1,100 @@
+---
+title: Workloads and rollouts
+order: 2
+summary: Pods, ReplicaSets, Deployments — and what maxSurge/maxUnavailable actually do to your capacity mid-rollout.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Chart from '../../../components/Chart';
+
+You almost never create a Pod directly. You create a **Deployment**, which owns
+**ReplicaSets**, which own **Pods**. Each layer is a controller reconciling the
+layer below it.
+
+<Diagram
+  caption="Ownership chain. A rollout is a Deployment shifting replicas from the old ReplicaSet to the new one."
+  chart={`flowchart TD
+  d["Deployment<br/>replicas: 10, image v2"] --> rsNew["ReplicaSet v2<br/>desired: 10"]
+  d -.->|scaled down| rsOld["ReplicaSet v1<br/>desired: 0"]
+  rsNew --> p1([Pod])
+  rsNew --> p2([Pod])
+  rsNew --> p3([Pod ...])
+  rsOld --> p4([Pod terminating])`}
+/>
+
+The Deployment does **not** update Pods in place. A change to the Pod template
+creates a *new* ReplicaSet and then moves replicas across, one bounded step at a
+time. Two knobs bound that movement:
+
+- **`maxSurge`** — how many Pods above `replicas` may exist. Buys speed, costs capacity headroom.
+- **`maxUnavailable`** — how many Pods below `replicas` may be Ready. Buys speed, costs serving capacity.
+
+Both default to 25%. Set `maxUnavailable: 0` and a rollout can never dip below
+full capacity — but it needs room to surge, so it will refuse to progress on a
+cluster with no spare resources.
+
+## Capacity during a rollout
+
+This chart is computed at build time — the loop below runs during `astro build`
+and only the resulting array is passed to the island, so no arithmetic ships to
+the browser.
+
+export const replicas = 10;
+export const maxSurge = 3;
+export const maxUnavailable = 2;
+
+export const rollout = (() => {
+  const steps = [];
+  let oldPods = replicas;
+  let newPods = 0;
+
+  while (oldPods > 0 || newPods < replicas) {
+    steps.push({
+      step: steps.length,
+      old: oldPods,
+      new: newPods,
+      available: oldPods + newPods,
+    });
+
+    // Scale up the new ReplicaSet as far as maxSurge allows...
+    const room = replicas + maxSurge - (oldPods + newPods);
+    newPods = Math.min(replicas, newPods + Math.max(room, 0));
+
+    // ...then retire old Pods, never dropping below replicas - maxUnavailable.
+    const floor = replicas - maxUnavailable;
+    const canRetire = Math.max(oldPods + newPods - floor, 0);
+    oldPods = Math.max(0, oldPods - canRetire);
+  }
+
+  steps.push({ step: steps.length, old: 0, new: replicas, available: replicas });
+  return steps;
+})();
+
+<Chart
+  client:visible
+  type="area"
+  data={rollout}
+  xKey="step"
+  xLabel="rollout step"
+  yLabel="pods"
+  series={[
+    { key: 'old', label: 'ReplicaSet v1', stack: true },
+    { key: 'new', label: 'ReplicaSet v2', stack: true },
+  ]}
+/>
+
+With `replicas: {replicas}`, `maxSurge: {maxSurge}` and `maxUnavailable: {maxUnavailable}`,
+the fleet peaks at {replicas + maxSurge} Pods and never serves with fewer than{' '}
+{replicas - maxUnavailable}. Tighten `maxUnavailable` to 0 and the peak is what
+protects you; widen it and you trade availability for a faster rollout.
+
+## Which workload object?
+
+| Object | Use when |
+| --- | --- |
+| Deployment | Stateless replicas, interchangeable. The default. |
+| StatefulSet | Stable identity and storage per replica (`db-0`, `db-1`). |
+| DaemonSet | Exactly one Pod per node (log shippers, CNI agents). |
+| Job / CronJob | Run to completion, once or on a schedule. |
+
+Next: what happens when `replicas` stops being a number you pick by hand.

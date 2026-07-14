@@ -1,0 +1,50 @@
+---
+title: Services
+order: 1
+summary: A stable address in front of Pods that keep being replaced.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+
+Pods are cattle: a rollout replaces every one of them, and each replacement gets
+a new IP. So nothing can hold a Pod IP and expect it to keep working. A
+**Service** is the stable thing you talk to instead.
+
+<Diagram
+  caption="A Service selects Pods by label. The EndpointSlice is the live list the data plane actually uses."
+  chart={`flowchart LR
+  client[Client Pod] -->|ClusterIP :80| svc[Service<br/>selector: app=api]
+  svc --> eps[EndpointSlice<br/>ready Pod IPs]
+  eps --> p1([Pod api-a])
+  eps --> p2([Pod api-b])
+  eps -.->|not Ready, removed| p3([Pod api-c])`}
+/>
+
+The selector is the whole idea: a Service names a **label**, not a set of Pods.
+The endpoint controller keeps an EndpointSlice in sync with whatever Pods
+currently carry that label *and* pass their readiness probe. Roll out a new
+ReplicaSet and the Service follows automatically — you never re-point anything.
+
+Which is also the failure mode. A Service with no matching Pods is not an
+error; it's an empty EndpointSlice and a connection that hangs or refuses. When
+a Service "doesn't work", check that the selector matches the Pod's labels, and
+that the Pods are actually **Ready** — an unready Pod is silently pulled out of
+rotation.
+
+## The types, in order of how far they reach
+
+| Type | Reachable from | Notes |
+| --- | --- | --- |
+| `ClusterIP` | Inside the cluster only | The default. A virtual IP, load-balanced across endpoints by kube-proxy. |
+| `NodePort` | Any node's IP, on a high port | Mostly a building block; rarely what you want directly. |
+| `LoadBalancer` | The internet | Asks the cloud provider for an external LB pointing at the NodePorts. |
+| `ExternalName` | — | Not a proxy at all; just a DNS CNAME to something outside the cluster. |
+
+A `LoadBalancer` per service gets expensive fast. That's what an **Ingress** (or
+Gateway API) is for: one load balancer, routing by host and path to many
+ClusterIP Services behind it.
+
+Note that a ClusterIP is not a real interface anywhere — it's a rule. kube-proxy
+programs iptables/IPVS on every node so that packets to that IP get rewritten to
+one of the endpoint Pod IPs. Nothing is listening on the ClusterIP itself, which
+is why you can't ping it.

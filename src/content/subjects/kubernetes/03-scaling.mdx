@@ -1,0 +1,89 @@
+---
+title: Autoscaling
+order: 3
+summary: The HPA formula, the tolerance band that stops it thrashing, and why scaling on CPU is often the wrong signal.
+---
+
+import Simulation from '../../../components/Simulation';
+import Quiz from '../../../components/Quiz';
+
+The **Horizontal Pod Autoscaler** is a controller like any other: it reads a
+metric, computes a desired replica count, and writes it to the Deployment's
+`spec.replicas`. The Deployment then does the actual scaling. The whole thing is
+one formula:
+
+```text
+desiredReplicas = ceil( currentReplicas × ( currentMetric / desiredMetric ) )
+```
+
+Two details save you from a thrashing cluster:
+
+1. **The tolerance band.** If the ratio is within 10% of 1.0, the HPA does
+   nothing at all. A fleet at 52% CPU against a 50% target is *not* rescaled.
+2. **`ceil`.** Scaling up is aggressive by design — half a Pod of demand still
+   costs you a whole Pod.
+
+## Try it
+
+Push the observed CPU past the target and watch the ratio cross out of the
+tolerance band. Notice how the curve flattens: each extra replica buys less
+relief than the one before, because you're dividing a fixed load by more pods.
+
+<Simulation client:visible model="hpa" title="HPA: desired replica count" />
+
+## Why CPU is a trap
+
+CPU is the default metric because it's always available, not because it's a good
+proxy for user pain. A service that spends its time waiting on a database is
+slow and idle at the same time — CPU stays flat while latency climbs, and the
+HPA never fires. Scale on the thing you actually care about:
+
+- **Requests per second** or **concurrency** for request-driven services.
+- **Queue depth** (via an external metric) for workers — this is the one where
+  `currentReplicas` in the formula matters most, since a deep queue with zero
+  running replicas can't scale from a per-pod metric at all.
+- **p99 latency** only as a last resort; it's noisy and lags the cause.
+
+Also: the HPA cannot help if the Pods can't be scheduled. If every node is full,
+the HPA writes `replicas: 20`, the ReplicaSet creates 20 Pods, and 8 sit
+`Pending` forever — unless a **Cluster Autoscaler** is adding nodes underneath.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: '4 replicas, observed CPU 52%, target 50%. What does the HPA do?',
+      options: ['Scales to 5', 'Nothing', 'Scales to 4.16, rounded to 4', 'Scales down to 3'],
+      answer: 1,
+      explain: 'The ratio is 1.04 — inside the 10% tolerance band, so the HPA skips the update entirely. This is what keeps it from oscillating around the target.',
+    },
+    {
+      q: '4 replicas, observed CPU 90%, target 50%. Desired replicas?',
+      options: ['7', '8', '9', '10'],
+      answer: 1,
+      explain: 'ceil(4 × 90/50) = ceil(7.2) = 8.',
+    },
+    {
+      q: 'Your HPA sets replicas to 20, but 8 Pods stay Pending. What is missing?',
+      options: [
+        'A higher maxReplicas',
+        'A readiness probe',
+        'Cluster capacity — nodes, or a Cluster Autoscaler to add them',
+        'A lower CPU target',
+      ],
+      answer: 2,
+      explain: 'The HPA only edits spec.replicas. If the scheduler cannot place the Pods, they stay Pending. The Cluster Autoscaler is the component that adds nodes.',
+    },
+    {
+      q: 'A worker pulls from a queue and is I/O bound. Why does a CPU-based HPA fail it?',
+      options: [
+        'CPU metrics are only collected every 5 minutes',
+        'The worker blocks on I/O, so CPU stays low while the queue grows',
+        'HPAs cannot target Deployments that use a queue',
+        'ceil() rounds the replica count down for I/O bound pods',
+      ],
+      answer: 1,
+      explain: 'Waiting on I/O consumes no CPU. The backlog is the real signal — scale on queue depth as an external metric instead.',
+    },
+  ]}
+/>

@@ -1,0 +1,7 @@
+# Subject-level metadata. One per subject folder.
+# Files starting with `_` are never treated as content pages.
+title: Kubernetes
+summary: Control plane, workloads and autoscaling — how a cluster actually decides what runs where.
+order: 1
+# Any Lucide icon name: https://lucide.dev/icons
+icon: ship-wheel

@@ -1,0 +1,77 @@
+---
+title: DNS and service discovery
+order: 2
+summary: Why `curl api` works from one namespace and not another.
+---
+
+import Quiz from '../../../../components/Quiz';
+
+Every Service gets a DNS name, served by CoreDNS inside the cluster:
+
+```text
+<service>.<namespace>.svc.cluster.local
+```
+
+Pods are configured with a search path, so from a Pod in namespace `prod`, all
+of these resolve to the same ClusterIP:
+
+```text
+api                        # relies on the search path
+api.prod                   # relies on the search path
+api.prod.svc.cluster.local # fully qualified, always works
+```
+
+That search path is exactly why `curl api` works from `prod` and fails from
+`staging`: the short name resolves relative to the *caller's* namespace. Cross
+namespace, you must qualify — `api.prod`.
+
+## Headless Services
+
+Set `clusterIP: None` and you get a **headless** Service: no virtual IP, no
+kube-proxy rules. DNS then returns the Pod IPs directly, one A record per ready
+Pod. That's what StatefulSets use — each replica also gets its own stable name
+(`db-0.db.prod.svc.cluster.local`), which is the point of a StatefulSet: you can
+address one specific replica, not "whichever".
+
+Use it when the client needs to see individual members — database replicas,
+peer-to-peer clustering, gRPC clients that want to load-balance themselves.
+Reach for a normal ClusterIP for everything else.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'From a Pod in namespace `staging`, `curl api` fails, but `curl api.prod` works. Why?',
+      options: [
+        'The Service is headless',
+        'Short names resolve against the caller\'s own namespace via the DNS search path',
+        'CoreDNS only serves fully qualified names',
+        'NetworkPolicy is blocking the short name',
+      ],
+      answer: 1,
+      explain: 'The search path appends the caller\'s namespace first. `api` in `staging` means `api.staging`, which does not exist.',
+    },
+    {
+      q: 'A Service exists, the Pods are running, but connections hang. Most likely cause?',
+      options: [
+        'The EndpointSlice is empty — the selector matches nothing, or the Pods are not Ready',
+        'The ClusterIP is not pingable',
+        'The Service needs type LoadBalancer',
+        'CoreDNS is down',
+      ],
+      answer: 0,
+      explain: 'An empty EndpointSlice is not an error. Check that the selector matches the Pod labels and that the readiness probe passes — unready Pods are pulled out of rotation.',
+    },
+    {
+      q: 'What does `clusterIP: None` give you?',
+      options: [
+        'A Service that is unreachable',
+        'A Service reachable only from the node',
+        'DNS that returns the individual Pod IPs, with no virtual IP or proxying',
+        'An external DNS CNAME',
+      ],
+      answer: 2,
+      explain: 'A headless Service. StatefulSets rely on it for stable per-replica names like db-0.db.',
+    },
+  ]}
+/>

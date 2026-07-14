@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+/* Dark mode is driven by a `dark` class on <html>, set before paint. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: oklch(0.97 0.02 255);
+  --color-brand-100: oklch(0.93 0.05 255);
+  --color-brand-500: oklch(0.62 0.18 255);
+  --color-brand-600: oklch(0.55 0.19 255);
+  --color-brand-700: oklch(0.48 0.17 255);
+}
+
+/* Chart palette. Read by Chart.tsx via getComputedStyle so charts follow the
+   theme instead of hard-coding hexes. */
+:root {
+  --chart-1: oklch(0.62 0.18 255);
+  --chart-2: oklch(0.68 0.16 160);
+  --chart-3: oklch(0.72 0.16 60);
+  --chart-4: oklch(0.62 0.2 20);
+  --chart-5: oklch(0.6 0.17 310);
+  --chart-grid: oklch(0.9 0.005 260);
+  --chart-axis: oklch(0.5 0.01 260);
+}
+
+.dark {
+  --chart-1: oklch(0.72 0.15 255);
+  --chart-2: oklch(0.76 0.14 160);
+  --chart-3: oklch(0.8 0.14 60);
+  --chart-4: oklch(0.72 0.17 20);
+  --chart-5: oklch(0.72 0.15 310);
+  --chart-grid: oklch(0.32 0.01 260);
+  --chart-axis: oklch(0.68 0.01 260);
+}
+
+/* Mermaid emits a raw <svg>; keep it centred and responsive. */
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+/* Pagefind's component UI (@pagefind/component-ui) declares its `--pf-*` tokens
+   on :root with light values only, and the trigger/modal render into the light
+   DOM — so redeclaring the tokens here themes the whole search UI, modal included.
+   The selectors must out-specify `:root`: a bare `.dark` ties it at (0,1,0) and
+   loses, because Pagefind's stylesheet is imported after this one. */
+:root:root {
+  --pf-border-radius: 0.5rem;
+  --pf-font: inherit;
+  --pf-outline-focus: var(--color-brand-600);
+}
+
+:root.dark {
+  --pf-text: var(--color-slate-100);
+  --pf-text-secondary: var(--color-slate-400);
+  --pf-text-muted: var(--color-slate-400);
+  --pf-background: var(--color-slate-900);
+  --pf-border: var(--color-slate-700);
+  --pf-border-focus: var(--color-slate-500);
+  --pf-hover: var(--color-slate-800);
+  --pf-mark: var(--color-brand-100);
+  --pf-skeleton: var(--color-slate-800);
+  --pf-skeleton-shine: var(--color-slate-700);
+  --pf-scroll-shadow: rgb(0 0 0 / 0.3);
+  --pf-modal-backdrop: rgb(0 0 0 / 0.7);
+  --pf-outline-focus: var(--color-brand-500);
+
+  --pf-shadow-sm: 0 2px 8px rgb(0 0 0 / 0.4);
+  --pf-shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+  --pf-shadow-lg: 0 16px 48px rgb(0 0 0 / 0.6);
+
+  --pf-error-bg: oklch(0.25 0.06 20);
+  --pf-error-border: oklch(0.4 0.1 20);
+  --pf-error-text: var(--color-rose-300);
+  --pf-error-text-secondary: var(--color-rose-400);
+}
