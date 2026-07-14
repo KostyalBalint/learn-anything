@@ -1,0 +1,106 @@
+---
+title: The platform
+order: 1
+summary: What GitLab actually sells — one application covering the whole lifecycle — plus the tiers, hosting options and the group/project model everything else hangs off.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+Most teams assemble a toolchain: a Git host, a CI service, an artifact registry,
+a vulnerability scanner, a deployment tool, an issue tracker. Each has its own
+permissions, its own webhooks, and its own idea of what "the pipeline" means.
+GitLab's pitch is that all of those are **one application over one data model**,
+so a commit, the merge request that carries it, the pipeline that built it, the
+scan that flagged it and the environment it landed in are all rows that already
+know about each other.
+
+That's the feature you're actually buying. Every individual capability below has
+a stronger standalone competitor; what none of them have is the join.
+
+<Diagram
+  caption="The lifecycle stages GitLab covers as one product. CI/CD sits in the middle and is what connects the left half to the right half."
+  chart={`flowchart LR
+  subgraph plan["Plan"]
+    i[Issues, epics<br/>boards, roadmaps]
+  end
+  subgraph code["Code"]
+    r[Repos, branches<br/>merge requests]
+  end
+  subgraph cicd["CI/CD"]
+    p[Pipelines, runners<br/>environments, releases]
+  end
+  subgraph secure["Secure"]
+    s[SAST, DAST, deps<br/>secrets, containers]
+  end
+  subgraph ops["Package & Operate"]
+    o[Registries, Pages<br/>feature flags, analytics]
+  end
+  i --> r --> p --> ops
+  p --> secure
+  secure -.->|findings back<br/>on the MR| r`}
+/>
+
+## Editions and tiers
+
+There is one codebase, shipped two ways.
+
+- **GitLab CE** — the open-source Community Edition (MIT).
+- **GitLab EE** — the same code plus proprietary features, gated at runtime by
+  a licence key. The tiers are **Free**, **Premium** and **Ultimate**.
+
+Roughly where the line falls, because it determines which features you can even
+plan around:
+
+| Tier | Representative features |
+| --- | --- |
+| Free | Repos, issues, merge requests, full CI/CD, container and package registries, basic secret detection |
+| Premium | Merge request approval rules, merge trains, protected environments, code owners, multiple issue boards, epics |
+| Ultimate | The full security scanner suite (SAST, DAST, dependency, licence, fuzz), security and vulnerability dashboards, compliance frameworks, portfolio management |
+
+The pattern is worth internalising: **the CI/CD engine itself is free**, at any
+scale you can supply runners for. What the paid tiers sell is *governance around*
+CI/CD — who may approve, what must pass, which environments are protected, and
+the dashboards that aggregate the results.
+
+## Where it runs
+
+- **GitLab.com** — the multi-tenant SaaS instance. Shared runners are metered in
+  **compute minutes**; you can always attach your own runners instead and pay
+  nothing for compute.
+- **GitLab Self-Managed** — you run the instance (Omnibus package, Docker, or the
+  Helm chart on Kubernetes). Your data, your upgrade schedule, your runners.
+- **GitLab Dedicated** — single-tenant SaaS, hosted by GitLab in a region you
+  pick. The compliance answer for people who cannot use the shared instance but
+  don't want to operate one.
+
+## Groups, projects, namespaces
+
+Everything is namespaced under a **group**, groups nest arbitrarily, and a
+**project** is the leaf that holds a repository, its issues, its pipelines and
+its registries.
+
+This is not just tidiness. Nearly every setting cascades down the group tree:
+members and their roles, CI/CD variables, runners, compliance frameworks, push
+rules, approval policies. A CI/CD variable defined on the top-level group is
+visible to every pipeline in every project beneath it, which is why "where do I
+put this secret?" is usually answered with "as high in the tree as it is allowed
+to be needed, and no higher."
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'Which tier includes CI/CD pipelines?',
+      back: 'Free. The pipeline engine is not a paid feature — the paid tiers sell governance on top of it (approval rules, protected environments, merge trains, security dashboards).',
+    },
+    {
+      front: 'What is a compute minute?',
+      back: 'The unit GitLab.com bills for jobs run on its shared runners. Self-hosted runners cost zero compute minutes, on SaaS or self-managed.',
+    },
+    {
+      front: 'What does a group give you that a folder of projects would not?',
+      back: 'Cascading configuration: members and roles, CI/CD variables, runners, push rules and compliance frameworks all inherit down the group tree.',
+    },
+  ]}
+/>

@@ -77,6 +77,67 @@ export const MODELS: Record<string, Model> = {
       };
     },
   },
+
+  /**
+   * GitLab CI pipeline wall-clock time, stage-gated vs `needs:` (DAG), as a
+   * function of how many jobs can run at once (runner concurrency).
+   *
+   * Stage-gated: each stage takes ceil(jobsPerStage / concurrency) * jobDuration,
+   * and stages are serial — so extra concurrency beyond jobsPerStage buys nothing.
+   * DAG: the pipeline is bounded by ceil(jobs / concurrency) * jobDuration, but
+   * never faster than the dependency chain itself (stages * jobDuration).
+   */
+  'ci-throughput': {
+    params: [
+      { name: 'jobs', label: 'Jobs in the pipeline', min: 1, max: 48, default: 24 },
+      { name: 'stages', label: 'Stages (dependency depth)', min: 1, max: 8, default: 4 },
+      { name: 'jobDuration', label: 'Duration per job', min: 1, max: 15, default: 3, unit: ' min' },
+      { name: 'concurrency', label: 'Concurrent runner slots', min: 1, max: 24, default: 4 },
+    ],
+    run: ({ jobs, stages, jobDuration, concurrency }) => {
+      const staged = (c: number) =>
+        stages * Math.ceil(jobs / stages / c) * jobDuration;
+      // A DAG still cannot beat its own critical path: one job per stage, serial.
+      const dag = (c: number) =>
+        Math.max(Math.ceil(jobs / c) * jobDuration, stages * jobDuration);
+
+      const stagedNow = staged(concurrency);
+      const dagNow = dag(concurrency);
+      const computeMinutes = jobs * jobDuration;
+
+      const data = Array.from({ length: 24 }, (_, i) => {
+        const c = i + 1;
+        return { concurrency: c, staged: staged(c), dag: dag(c) };
+      });
+
+      return {
+        readouts: [
+          { label: 'Stage-gated', value: `${stagedNow} min`, hint: `${stages} serial stages` },
+          {
+            label: 'With needs:',
+            value: `${dagNow} min`,
+            hint: dagNow < stagedNow ? `${Math.round((1 - dagNow / stagedNow) * 100)}% faster` : 'no gain at this concurrency',
+          },
+          {
+            label: 'Runner minutes billed',
+            value: computeMinutes,
+            hint: 'identical either way — concurrency buys latency, not compute',
+          },
+        ],
+        chart: {
+          type: 'line',
+          data,
+          xKey: 'concurrency',
+          xLabel: 'concurrent runner slots',
+          yLabel: 'pipeline wall clock (min)',
+          series: [
+            { key: 'staged', label: 'Stage-gated' },
+            { key: 'dag', label: 'With needs:' },
+          ],
+        },
+      };
+    },
+  },
 };
 
 export type SimulationProps = {

@@ -94,7 +94,19 @@ export default function Chart({
       />
       <YAxis
         {...axisProps}
-        label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: colors.axis } : undefined}
+        label={
+          yLabel
+            ? {
+                value: yLabel,
+                angle: -90,
+                position: 'insideLeft',
+                fill: colors.axis,
+                // Without an explicit middle anchor the rotated label is laid out
+                // from its start point and runs off the bottom of the plot.
+                style: { textAnchor: 'middle' },
+              }
+            : undefined
+        }
       />
       <Tooltip
         contentStyle={{
@@ -109,7 +121,7 @@ export default function Chart({
     </>
   );
 
-  const margin = { top: 8, right: 12, bottom: xLabel ? 20 : 4, left: yLabel ? 12 : 0 };
+  const margin = { top: 8, right: 12, bottom: xLabel ? 20 : 4, left: yLabel ? 20 : 0 };
 
   return (
     <div className="not-prose my-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">

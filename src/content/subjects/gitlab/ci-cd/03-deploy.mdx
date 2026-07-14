@@ -1,0 +1,120 @@
+---
+title: Environments and deployment
+order: 3
+summary: Environments, review apps, releases, protected environments and approvals — the CD half, where GitLab stops describing jobs and starts tracking state.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Flashcard from '../../../../components/Flashcard';
+
+A job that runs `kubectl apply` is just a job. Add `environment: production` to
+it and GitLab starts keeping *state*: what is deployed where, which commit it
+came from, who deployed it, and when.
+
+<Diagram
+  caption="One branch, three environments. The review app lives and dies with the merge request; staging and production are long-lived and remember their deployment history."
+  chart={`flowchart LR
+  mr["MR: feature/x"] --> rapp["Review app<br/>environment: review/feature-x<br/>on_stop: teardown job"]
+  rapp -.->|MR closed| gone(["auto-stopped,<br/>URL freed"])
+  mr -->|merged| main["main"]
+  main --> stg["environment: staging<br/>auto"]
+  stg --> gateway{{"manual job<br/>+ approval"}}
+  gateway --> prod["environment: production<br/>protected"]
+  prod --> rel["Release<br/>tag, notes, assets"]`}
+/>
+
+## Environments
+
+An **environment** is a named deployment target with a URL, a history, and a
+current commit. What you get once GitLab knows about it:
+
+- **A deployment history** — every deploy to `production`, with its commit, its
+  pipeline, its actor, and a timestamp. Free.
+- **Rollback** — one button on the environment page, but read it for what it is:
+  GitLab re-runs the *deployment job of an older pipeline*. Nothing is inverted
+  and nothing is stored; your deploy script simply executes again against an
+  earlier commit. So it only works while that pipeline and its artifacts still
+  exist, and only if the script is idempotent — a migration that dropped a column
+  is not coming back this way.
+- **"Deployed to production" badges** on merge requests and issues, so you can
+  answer "is my fix live?" without asking anyone.
+- **`on_stop`** — a job that tears the environment down, run automatically when
+  the branch is deleted or the MR closes.
+- **Auto-stop** (`auto_stop_in: 1 week`) — an expiry, so ephemeral environments
+  don't quietly accumulate cost.
+
+**Review apps** are the payoff. Give the environment a dynamic name
+(`review/$CI_COMMIT_REF_SLUG`) and a dynamic URL, and every merge request gets
+its own running copy of the application, linked from the MR, torn down when the
+MR closes. A designer clicks a link in the MR and sees the change; nobody checks
+out a branch.
+
+## Gating a deployment
+
+The pieces that stop a pipeline from putting anything it likes into production:
+
+| Feature | What it enforces |
+| --- | --- |
+| **`when: manual`** | The job exists but waits for a human to press play. Combine with `allow_failure: false` to block the pipeline until then. |
+| **Protected environments** | Only named users, groups or roles may run a job targeting this environment — enforced by GitLab, not by whoever holds the deploy key. Premium. |
+| **Deployment approvals** | N approvals *on the deployment itself*, distinct from MR approvals. The one that satisfies separation-of-duties auditors. Premium. |
+| **Protected branches / tags** | Who may push, merge, or create a tag that a deploy pipeline triggers on. |
+| **CI/CD variables, masked and protected** | A protected variable is only exposed to jobs on protected branches — so a fork's pipeline cannot read the production token. |
+| **OIDC / ID tokens** | The pipeline exchanges a short-lived, signed identity token for cloud credentials, so no long-lived AWS key exists in the project at all. |
+
+The variable rules are worth dwelling on, because that's where CI systems
+actually leak. **Masked** hides a value in job logs (best-effort — it can still be
+`base64`'d out by a malicious script). **Protected** is the real control: the
+value is never injected into a job running on an unprotected ref. Secrets can
+also be pulled at runtime from an external manager (HashiCorp Vault, or a cloud
+secrets manager) rather than stored in GitLab at all.
+
+## Deployment strategies
+
+GitLab does not invent deployment mechanics — it gives you the primitives and
+lets the job do the work.
+
+- **Incremental rollout / canary** — Auto DevOps ships jobs that scale a canary
+  track up in stages (`10%`, `25%`, `50%`, `100%`), each a manual job you can
+  stop at.
+- **Feature flags** — GitLab hosts an Unleash-compatible flag service, so a
+  release can be decoupled from the deploy entirely: ship the code dark, flip
+  the flag for 5% of users, watch, widen.
+- **Releases** — a first-class object attached to a tag: release notes, linked
+  milestones, and asset links (binaries, packages, the built container image).
+  `release:` in a job creates it; the Releases page is what an external consumer
+  reads.
+
+## Auto DevOps
+
+Auto DevOps is the "no `.gitlab-ci.yml` at all" mode: GitLab detects the
+language, then builds, tests, scans (SAST, dependency, container, DAST), builds
+a container image, and deploys it to a connected Kubernetes cluster with a
+generic Helm chart — canary and incremental rollout included.
+
+In practice, teams outgrow it: the moment you need to change one step you're
+overriding template variables, and it's cheaper to write the pipeline. Its real
+value is as a reference implementation of a complete pipeline, and as a very
+fast way to get a new project from zero to deployed.
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'Masked vs protected CI/CD variable?',
+      back: 'Masked only hides the value in job logs, best-effort. Protected means the value is never injected into a job running on an unprotected branch or tag — that is the one that stops a fork or a feature branch from reading your production credentials.',
+    },
+    {
+      front: 'What does adding `environment:` to a job unlock?',
+      back: 'Deployment history, one-click rollback, "deployed to production" badges on MRs and issues, on_stop teardown jobs, auto-stop expiry, and protected-environment / deployment-approval gating.',
+    },
+    {
+      front: 'Why use ID tokens (OIDC) instead of an AWS key in a CI/CD variable?',
+      back: 'The pipeline presents a short-lived signed token and exchanges it for temporary cloud credentials. No long-lived secret exists in the project, so there is nothing to leak or rotate.',
+    },
+    {
+      front: 'What is a review app?',
+      back: 'A dynamically-named environment (review/$CI_COMMIT_REF_SLUG) deployed per merge request, linked from the MR, and torn down automatically by its on_stop job when the MR closes.',
+    },
+  ]}
+/>

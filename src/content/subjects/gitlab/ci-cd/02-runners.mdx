@@ -1,0 +1,92 @@
+---
+title: Runners, cache and artifacts
+order: 2
+summary: The thing that actually executes a job — executors, tags, autoscaling — plus the cache/artifact distinction that decides how long your pipeline takes.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Simulation from '../../../../components/Simulation';
+
+GitLab itself never runs your code. A **runner** is a separate agent that
+registers with the instance, polls it for jobs it is allowed to take, executes
+them, and streams the log back. That separation is the whole feature: the
+control plane can be SaaS while the compute sits inside your VPC, on your GPUs,
+or on a Mac mini under a desk.
+
+<Diagram
+  caption="Runners pull work; GitLab never pushes to them. Nothing needs to be reachable from the internet except GitLab itself."
+  chart={`flowchart LR
+  gl["GitLab<br/>job queue"]
+  r1["Shared runner<br/>(GitLab.com fleet)"]
+  r2["Group runner<br/>your VPC"]
+  r3["Project runner<br/>tagged: gpu"]
+  r1 -->|"long poll: any job for me?"| gl
+  r2 -->|long poll| gl
+  r3 -->|long poll| gl
+  r2 --> ex["Executor<br/>docker · k8s · shell · vm"]
+  ex --> job["Job: script, artifacts, cache"]`}
+/>
+
+## Where a runner can be attached
+
+**Instance-wide (shared)**, **group** or **project**. Attaching at the group
+level is usually right — one runner fleet serves every project in the group, and
+you don't re-register it forty times.
+
+## Executors
+
+The **executor** is how a runner isolates a job, and it is the choice with the
+most consequences:
+
+| Executor | Each job runs in | Notes |
+| --- | --- | --- |
+| `docker` | A fresh container from the image the job names | The default answer. `image:` per job, `services:` for sidecars like Postgres. |
+| `kubernetes` | A pod in a cluster | Autoscales by definition — the cluster schedules it. The standard self-hosted setup. |
+| `docker-autoscaler` / `instance` | A cloud VM created on demand, destroyed after | For jobs that need a real machine (nested virtualisation, Docker-in-Docker). |
+| `shell` | Directly on the runner host | Fast, and no isolation whatsoever. A job can read the last job's leftovers. |
+
+**Tags** are the routing mechanism. A runner declares tags; a job requests them
+with `tags:`. A job whose tags nothing matches sits pending forever rather than
+running somewhere unsuitable — which is the intended behaviour, but it's also
+the single most common "my pipeline is stuck" cause.
+
+## Cache is not artifacts
+
+They both move files, and confusing them is what makes pipelines slow.
+
+| | **Artifacts** | **Cache** |
+| --- | --- | --- |
+| Direction | Forward, to later jobs in this pipeline | Sideways, to future runs of this job |
+| Guaranteed? | Yes — a job that `needs:` them will have them | No. A miss is normal; the job must still work. |
+| Typical content | Compiled binary, test report, scan report | `node_modules/`, `~/.m2`, compiler caches |
+| Visible in the UI | Yes — downloadable, and parsed into MR reports | No |
+
+The rule that follows: **never cache something you must have, never make an
+artifact of something you can regenerate.** A `node_modules/` artifact bloats
+every pipeline's storage; a cached build output silently poisons a release.
+
+Artifacts also carry *meaning* when you declare their type. `artifacts:reports:junit`
+puts failed tests directly in the merge request diff; `coverage_report` draws the
+coverage on changed lines; the security report types feed the vulnerability
+panels. Same mechanism, different parser.
+
+## Concurrency: what more runners actually buy
+
+Runner capacity changes *latency*, never *compute*. Ten slots and one slot bill
+the same runner minutes for the same pipeline — you're paying for the pipeline
+to finish sooner, not for it to cost less.
+
+Push concurrency up on the stage-gated line and watch it flatten early: once you
+have as many slots as the widest stage, extra runners are idle, because the
+stage barrier is what you're waiting on, not capacity. The DAG line keeps
+benefiting until it hits its own critical path.
+
+<Simulation client:visible model="ci-throughput" title="Pipeline wall clock vs runner concurrency" />
+
+Two floors this model makes visible:
+
+1. **Stage-gated pipelines stop improving** once concurrency reaches the width
+   of the widest stage. Buying runners past that point does nothing.
+2. **A DAG cannot beat its own dependency chain.** With four stages of serial
+   dependencies and three-minute jobs, twelve minutes is the floor no matter how
+   many machines you own. To go faster you must shorten the chain, not widen it.

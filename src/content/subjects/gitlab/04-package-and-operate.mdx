@@ -1,0 +1,55 @@
+---
+title: Package, host and observe
+order: 4
+summary: Registries, Pages, analytics and Duo — the features that exist mainly because they are already authenticated against the same project.
+---
+
+The remaining features share one justification: **the pipeline already has a
+token for them.** `CI_JOB_TOKEN` authenticates a job to its own project's
+registries, so pushing an image or a package needs no secret you had to create.
+
+## Registries
+
+| Registry | Holds |
+| --- | --- |
+| **Container registry** | Docker/OCI images, one namespace per project. Cleanup policies delete old tags on a schedule, which matters — this is usually the storage bill. |
+| **Package registry** | npm, Maven, PyPI, NuGet, Go, Composer, Conan, Helm — as first-class repositories with the ecosystem's native client. |
+| **Dependency proxy** | A caching pull-through proxy for Docker Hub. Also the answer to Docker Hub's rate limits. |
+| **Terraform state & module registry** | Remote state backend with locking, plus versioned module hosting. |
+
+The result is that "build an image, scan it, push it, deploy it" is four jobs in
+one file with zero credentials configured. That is the same argument as
+everywhere else in this subject: not that any one of these is best-in-class, but
+that they are pre-joined.
+
+## GitLab Pages
+
+Static sites, built by a job named `pages` that puts its output in a `public/`
+artifact. Custom domains, TLS, and optionally access-controlled so the site is
+only visible to project members — which makes it the default home for internal
+docs, coverage reports and Storybooks published straight out of CI.
+
+## Analytics
+
+- **Value Stream Analytics** — time spent in each stage from issue creation to
+  production, measured from the objects themselves rather than a survey.
+- **CI/CD analytics** — pipeline success rate and duration over time. The place
+  you notice a suite getting slower before anyone complains.
+- **DORA metrics** — deployment frequency, lead time for changes, change failure
+  rate, time to restore. Ultimate. Computed from deployments and incidents that
+  GitLab already records, which is precisely why it can compute them at all.
+- **Insights and Security dashboards** — group-level rollups.
+
+## GitLab Duo
+
+The AI layer: code suggestions in the IDE, chat with repo context, merge request
+summaries, and — the one that belongs to this subject — **root cause analysis on
+a failed CI job**, which reads the job log and the diff and proposes the fix.
+Sold as an add-on seat rather than folded into the tiers.
+
+## The one-sentence version
+
+GitLab's feature list is long, but the argument is short: every stage writes into
+the same database, so the merge request can show you the pipeline, the new
+vulnerabilities, the failed tests and a live URL of your branch at once — and a
+policy can refuse the merge on any of them.

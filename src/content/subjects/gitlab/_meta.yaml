@@ -1,0 +1,6 @@
+# Subject-level metadata. One per subject folder.
+title: GitLab
+summary: One application for the whole software lifecycle — plan, code, build, scan, deploy — with CI/CD as the spine holding it together.
+order: 2
+# Any Lucide icon name: https://lucide.dev/icons
+icon: gitlab

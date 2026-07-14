@@ -1,0 +1,158 @@
+---
+title: The pipeline model
+order: 1
+summary: Jobs, stages, the four pipeline types, and why `needs:` turns a staircase of stages into a DAG.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Chart from '../../../../components/Chart';
+
+A pipeline is defined in **`.gitlab-ci.yml`, in the repository**. That single
+choice pulls a lot behind it: the pipeline is versioned with the code, branches
+can change it, a merge request can review it, and rolling back a bad build
+config is a revert. There is no pipeline that exists only in a web UI.
+
+The vocabulary is small:
+
+- A **job** is the atom — a script running in one environment, on one runner.
+- A **stage** is a group of jobs that run in parallel; the next stage does not
+  start until every job in this one has passed.
+- A **pipeline** is the whole graph of jobs for one commit.
+- **Artifacts** hand files forward to later jobs (and to the merge request UI).
+  **Cache** hands files sideways, to speed up a future run of the same job.
+
+## The four pipeline types
+
+This is the distinction people trip on, because the same YAML produces different
+pipelines depending on how it is triggered.
+
+| Type | Runs against | Typical use |
+| --- | --- | --- |
+| **Branch pipeline** | The branch's own commit | The default: push a branch, it builds. |
+| **Merge request pipeline** | The same commit, but with MR context available | Jobs that only make sense for an MR: review apps, security diffs. |
+| **Merged results pipeline** | A temporary merge of your branch *into* the target | Tests what will exist after the merge, not what exists now. Premium. |
+| **Merge train** | The merged result *plus* every MR queued ahead of you | Keeps `main` green under high merge volume. Premium. |
+
+The `rules:` keyword decides which of these a job takes part in, and it is
+evaluated per job against a large set of predefined variables
+(`$CI_PIPELINE_SOURCE`, `$CI_COMMIT_BRANCH`, `$CI_MERGE_REQUEST_TARGET_BRANCH_NAME`,
+and so on). A job with no matching rule is simply absent from the pipeline — it
+is not skipped, it never existed.
+
+## Stages are a staircase; `needs:` is a graph
+
+By default, a job waits for its *entire* stage predecessor to finish, even if it
+only truly depends on one job in it. That is a lot of idle runners.
+
+`needs:` names the specific jobs a job depends on, which detaches it from the
+stage ordering and turns the pipeline into a **directed acyclic graph**. A job
+whose dependencies are done starts immediately, whatever stage it nominally
+lives in.
+
+<Diagram
+  caption="Same seven jobs, two orderings. On the left, every stage boundary is a barrier. On the right, `needs:` lets each branch of the graph run as fast as its own dependencies allow."
+  chart={`flowchart LR
+  subgraph staged["Stage-gated"]
+    direction TB
+    sb1[build:api] --> gate1{{"stage barrier"}}
+    sb2[build:web] --> gate1
+    gate1 --> st1[test:api]
+    gate1 --> st2[test:web]
+    gate1 --> st3[lint]
+    st1 --> gate2{{"stage barrier"}}
+    st2 --> gate2
+    st3 --> gate2
+    gate2 --> sd[deploy]
+  end
+  subgraph dag["With needs:"]
+    direction TB
+    nb1[build:api] --> nt1[test:api]
+    nb2[build:web] --> nt2[test:web]
+    nl[lint]
+    nt1 --> nd[deploy]
+    nt2 --> nd
+  end`}
+/>
+
+Two things to notice in the DAG version. `lint` needs nothing, so it starts at
+second zero instead of waiting for both builds. And `test:api` starts the moment
+`build:api` is done — it does not care that `build:web` is still running.
+
+## What that costs you in wall-clock time
+
+The shape that stages punish is an *uneven* pipeline. Here `build:web` is slow
+(6 minutes) but its tests are quick, while the API builds in 2 minutes and then
+tests for 5 — so the two halves want to move at completely different speeds, and
+a stage barrier forces them to move at the slower one.
+
+export const jobs = [
+  { name: 'build:api', dur: 2, needs: [] },
+  { name: 'build:web', dur: 6, needs: [] },
+  { name: 'lint', dur: 1, needs: [] },
+  { name: 'test:api', dur: 5, needs: ['build:api'] },
+  { name: 'test:web', dur: 2, needs: ['build:web'] },
+  { name: 'deploy', dur: 2, needs: ['test:api', 'test:web'] },
+];
+
+export const stageOf = {
+  'build:api': 0, 'build:web': 0, 'lint': 1, 'test:api': 1, 'test:web': 1, 'deploy': 2,
+};
+
+export const timings = (() => {
+  // Stage-gated: a stage starts only when the previous one has fully drained.
+  const stageEnd = [0, 0, 0];
+  let clock = 0;
+  for (let s = 0; s < 3; s++) {
+    const inStage = jobs.filter((j) => stageOf[j.name] === s);
+    clock += Math.max(...inStage.map((j) => j.dur));
+    stageEnd[s] = clock;
+  }
+
+  // DAG: a job starts as soon as everything it needs has finished.
+  const finish = {};
+  const resolve = (j) =>
+    (finish[j.name] ??=
+      Math.max(0, ...j.needs.map((n) => resolve(jobs.find((x) => x.name === n)))) + j.dur);
+  jobs.forEach(resolve);
+
+  return jobs.map((j) => ({
+    job: j.name,
+    staged: stageEnd[stageOf[j.name]],
+    dag: finish[j.name],
+  }));
+})();
+
+<Chart
+  client:visible
+  type="bar"
+  data={timings}
+  xKey="job"
+  yLabel="finished at (min)"
+  series={[
+    { key: 'staged', label: 'Stage-gated' },
+    { key: 'dag', label: 'With needs:' },
+  ]}
+/>
+
+Total runner time is identical — 18 minutes of compute either way. What changes
+is the critical path: **{timings.at(-1).staged} minutes down to {timings.at(-1).dag}**,
+because `test:api` stops waiting for `build:web`, a job it never needed and only
+shared a stage boundary with.
+
+## Composing pipelines
+
+Nobody writes one 900-line `.gitlab-ci.yml`. The composition features, roughly in
+order of how much structure they impose:
+
+- **`include:`** — pull in YAML from another file, another project, a remote URL,
+  or a GitLab-provided template. This is how one platform team owns the build
+  config for forty repos.
+- **`extends:` and YAML anchors** — job inheritance within a file.
+- **CI/CD components and the CI/CD Catalog** — versioned, input-typed, publishable
+  pipeline building blocks (`spec: inputs:`), discoverable across the instance.
+  The modern answer to a shared `include:` of a URL nobody owns.
+- **Parent–child pipelines** — a job that generates YAML and triggers it as a
+  child pipeline. The escape hatch for monorepos: build the pipeline you need for
+  the paths that actually changed.
+- **Multi-project pipelines** — a job in one project triggers a pipeline in
+  another, and can wait on its result.

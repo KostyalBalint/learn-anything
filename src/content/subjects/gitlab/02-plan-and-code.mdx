@@ -1,0 +1,80 @@
+---
+title: Plan and code
+order: 2
+summary: Issues, epics and boards on one side; merge requests, approvals and code owners on the other. The merge request is the object everything else attaches to.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+
+## Planning
+
+The planning half is a work-tracker that happens to live next to the code, which
+means an issue can be closed by a commit message, referenced from a merge
+request, and burned down without an integration ever being configured.
+
+| Feature | What it is |
+| --- | --- |
+| **Issues** | The unit of work. Labels, milestones, assignees, weights, time tracking, linked issues (blocks / is blocked by). |
+| **Epics** | A parent above issues, itself nestable. Premium. This is how a quarter of work is expressed rather than a sprint's worth. |
+| **Boards** | Kanban views over issues, where the columns *are* labels — dragging a card rewrites a label, so the board is a view, never a separate source of truth. |
+| **Milestones & iterations** | Time-boxes. Milestones are a due date; iterations are a repeating cadence with burndown. |
+| **Roadmaps** | Epics on a timeline. Ultimate. |
+| **Wikis, pages, snippets** | Per-project docs and scratch content, versioned in their own Git repos. |
+
+The quiet feature here is **cross-linking**: mention `#42` in a merge request, or
+`Closes #42` in a commit, and both objects grow a permanent, bidirectional note.
+Nothing to wire up, because it's the same database.
+
+## Code
+
+The repository features are the ones you'd expect — protected branches, tags,
+file locking, Git LFS, mirroring to or from another remote, push rules that
+reject a commit on the server (bad author email, unsigned commit, a secret in
+the diff). The interesting object is the merge request.
+
+## The merge request is the hub
+
+A **merge request** (GitLab's pull request) is where the platform's "one
+application" claim gets cashed in. It's not just a diff waiting for a click; it
+is the surface that every other stage reports onto.
+
+<Diagram
+  caption="A merge request aggregates results from stages that, in a stitched-together toolchain, would each live in a different product."
+  chart={`flowchart TD
+  mr["Merge request<br/>feature → main"]
+  mr --> pipe["Pipeline status<br/>jobs, stages, artifacts"]
+  mr --> sec["Security scan diffs<br/>only NEW findings shown"]
+  mr --> cov["Test & coverage reports<br/>failed tests inline in the diff"]
+  mr --> env["Review app<br/>a live URL for this branch"]
+  mr --> rev["Approvals<br/>rules, code owners"]
+  pipe --> merge{"Merge<br/>allowed?"}
+  sec --> merge
+  cov --> merge
+  rev --> merge`}
+/>
+
+The features that gate that final diamond:
+
+- **Approval rules** — "two approvals, at least one from the backend group".
+  Rules can be made non-overridable and required for specific target branches.
+  Premium.
+- **Code owners** — a `CODEOWNERS` file maps path globs to owners, and touching
+  a path pulls its owner in as a required reviewer. This is how you enforce
+  "nobody changes the migration folder without a DBA" without a human noticing.
+  Premium.
+- **Merge checks** — pipeline must succeed, all threads resolved, no unresolved
+  security policy violation.
+- **Merge methods** — merge commit, merge commit with semi-linear history, or
+  fast-forward only. Plus squash, optionally enforced.
+- **Merge trains** — instead of merging what *was* green, each MR is tested
+  against the queue of MRs ahead of it before it lands, so `main` doesn't break
+  from two individually-green changes that conflict semantically. Premium, and
+  it only makes sense on a busy repo.
+
+The security and test panels above are **differential**: they compare the
+pipeline on your branch against the pipeline on the target branch, and surface
+only what your change *adds*. That's what makes a scanner tolerable on a legacy
+codebase — you inherit the existing 400 findings, you're only blocked on the one
+you just introduced.
+
+Next: the engine underneath all of this.

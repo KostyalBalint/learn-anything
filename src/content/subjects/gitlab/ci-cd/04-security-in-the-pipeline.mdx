@@ -1,0 +1,124 @@
+---
+title: Security in the pipeline
+order: 4
+summary: The scanner suite, why findings are differential, and the policies that make a scan a gate instead of a report nobody reads.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Every GitLab security feature is, mechanically, **a CI/CD job that emits a JSON
+report artifact**. That's the whole trick. There is no separate scanning product
+with its own schedule and its own inbox — you `include:` a template, a job runs
+in your pipeline, and its report becomes a panel in the merge request.
+
+That framing explains the behaviour people find surprising: if the job doesn't
+run in the pipeline, the feature does not exist for that commit.
+
+<Diagram
+  caption="A scanner is a job like any other. What makes it special is the report artifact type, which GitLab parses instead of merely storing."
+  chart={`flowchart LR
+  tmpl["include:<br/>Jobs/SAST.gitlab-ci.yml"] --> job["sast job<br/>runs in your pipeline"]
+  job --> art["artifacts:reports:sast<br/>findings JSON"]
+  art --> diff["MR panel:<br/>NEW findings only"]
+  art --> db["Vulnerability report<br/>(project / group)"]
+  db --> pol{{"Scan result policy:<br/>block merge on<br/>critical?"}}
+  pol --> mr["Merge request"]`}
+/>
+
+## The scanners
+
+| Scanner | Finds | Tier |
+| --- | --- | --- |
+| **Secret detection** | Credentials committed to the repo, across the full history | Free |
+| **SAST** | Static analysis of your source, language-detected | Free (a subset); full ruleset Ultimate |
+| **Dependency scanning** | Known CVEs in your dependencies, plus an **SBOM** | Ultimate |
+| **Container scanning** | CVEs in the OS packages of the image you just built | Ultimate |
+| **DAST** | Attacks a running instance of your app — often the review app | Ultimate |
+| **IaC scanning** | Misconfigured Terraform, Kubernetes manifests, Helm charts | Free |
+| **License scanning** | Dependency licences against an allow/deny list | Ultimate |
+| **Fuzz testing** | Coverage-guided and API fuzzing | Ultimate |
+
+Note what DAST implies: the pipeline built a review app, then pointed a scanner
+at the live URL, per merge request. That's only cheap because environments,
+review apps and scanning are the same system.
+
+## Differential findings
+
+The merge request shows **new** findings — the ones your branch introduces
+relative to the target branch — not the project's entire backlog. A ten-year-old
+codebase has hundreds of findings and adopting a scanner does not require fixing
+them first; it requires not *adding* to them. The full set still lives in the
+project's Vulnerability Report, where a finding can be confirmed, dismissed with
+a reason, or turned into an issue.
+
+## Policies: making it a gate
+
+A scan that produces a report changes nothing on its own. **Security policies**
+(Ultimate) are what give it teeth, and they are defined in a separate,
+separately-protected policy project — so the developer editing `.gitlab-ci.yml`
+cannot remove the scan that guards their own merge.
+
+- **Scan execution policy** — "every project in this group runs secret detection
+  and dependency scanning, whether or not their `.gitlab-ci.yml` says so."
+- **Scan result / merge request approval policy** — "a new Critical vulnerability
+  requires approval from the AppSec group before this MR may merge."
+- **Pipeline execution policy** — inject required jobs into every pipeline in
+  scope.
+- **Compliance frameworks** — label projects (`SOX`, `PCI`) and attach the
+  required pipeline and the approval settings to the label, applied across the
+  group.
+
+That separation — *the pipeline is owned by the team, the policy is owned by
+security, and the policy wins* — is the actual product here. The scanners
+themselves are mostly open-source tools you could run yourself.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'You add SAST to a 6-year-old repo. The scan reports 300 findings. What does the merge request show?',
+      options: [
+        'All 300, blocking the merge',
+        'Only the findings your branch introduces, compared against the target branch',
+        'Nothing until the backlog is triaged',
+        'A random sample of 20',
+      ],
+      answer: 1,
+      explain: 'Findings in the MR are differential. The other 300 stay in the project Vulnerability Report for triage; you are only accountable for what you add.',
+    },
+    {
+      q: 'A team deletes the dependency-scanning job from their .gitlab-ci.yml. What stops them?',
+      options: [
+        'Nothing — the pipeline is theirs',
+        'A scan execution policy, defined in a separate protected policy project, which injects the job anyway',
+        'The runner refuses to take the job',
+        'Protected branches',
+      ],
+      answer: 1,
+      explain: 'Scan execution policies live outside the project and are enforced on it. That is the whole point of splitting policy ownership from pipeline ownership.',
+    },
+    {
+      q: 'Why is DAST cheap to run per merge request in GitLab, when it needs a running app?',
+      options: [
+        'It only scans the diff',
+        'It runs against a static build',
+        'The pipeline already deploys a review app per MR, so DAST just targets that URL',
+        'It is sampled once a week',
+      ],
+      answer: 2,
+      explain: 'Review apps and scanning are the same pipeline. DAST points at the ephemeral environment the MR already created, then it is torn down with it.',
+    },
+    {
+      q: 'What does a `artifacts:reports:` type change about a job artifact?',
+      options: [
+        'It compresses it',
+        'GitLab parses it and renders it — test failures in the diff, coverage on changed lines, vulnerabilities in the security panel',
+        'It keeps it forever',
+        'It makes the job required',
+      ],
+      answer: 1,
+      explain: 'A plain artifact is a file you can download. A typed report is parsed by GitLab and surfaced in the merge request and the dashboards. Same mechanism, different parser.',
+    },
+  ]}
+/>
