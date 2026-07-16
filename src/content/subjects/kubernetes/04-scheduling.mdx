@@ -1,0 +1,151 @@
+---
+title: Scheduling and placement
+order: 4
+summary: Requests vs limits, the QoS class you never set on purpose, and the four ways to stop a Pod landing on the wrong node.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Simulation from '../../../components/Simulation';
+import Quiz from '../../../components/Quiz';
+
+The scheduler's whole job is one decision, repeated: given a Pod with no
+`spec.nodeName`, pick a node. It runs in two phases.
+
+<Diagram
+  caption="Filter throws out nodes that cannot work. Score ranks the ones that can. No feasible node means Pending."
+  chart={`flowchart LR
+  pending[Pod, unbound] --> filter{Filter}
+  filter -->|fits requests, tolerates taints,<br/>satisfies affinity| feasible[Feasible nodes]
+  filter -.->|no node passes| stay([Pending])
+  feasible --> score{Score}
+  score -->|highest total| bind[Bind: write spec.nodeName]
+  bind --> kubelet[kubelet takes over]`}
+/>
+
+**Filter** is a hard yes/no per node: does the Pod's CPU/memory request fit in
+what's left, does it tolerate the node's taints, does its affinity allow this
+node. **Score** ranks the survivors — spread across zones, prefer nodes that
+already have the image, prefer nodes that end up least (or most) utilised.
+
+If filtering leaves nothing, the Pod stays `Pending` and the scheduler retries.
+It never bends a constraint to make a Pod fit.
+
+## Requests decide placement, limits decide throttling
+
+This is the distinction that costs people the most time:
+
+| Field | Who reads it | What it does |
+| --- | --- | --- |
+| `requests` | The scheduler | Reserved on the node. Placement arithmetic uses this and only this. |
+| `limits` | The kubelet / runtime | Enforced at runtime. CPU over limit is throttled; memory over limit is **OOMKilled**. |
+
+A Pod with `requests: 100m` and `limits: 2` will happily be scheduled onto a
+crowded node and then get throttled to a crawl. A Pod with `requests: 2` and no
+limit is guaranteed 2 cores of room and can burst past it. The node is oversubscribed
+whenever the sum of limits exceeds capacity — which is normal and fine, right up
+until it isn't.
+
+Memory has no throttling. Exceed a memory limit and the container is killed, not
+slowed. That's why `OOMKilled` shows up as a restart loop rather than latency.
+
+## Bin packing, not division
+
+Capacity is not "total CPU ÷ request". Each node fits `floor(allocatable / request)`
+Pods and the remainder is **stranded** — free CPU that can never hold another
+replica. Push the request up and watch pods-per-node drop in whole steps.
+
+<Simulation client:visible model="scheduler" title="Will the replicas fit?" />
+
+`allocatable` is already less than the node's physical capacity: the kubelet
+reserves some for the OS and itself, and DaemonSets take a bite out of every
+node before your Deployment sees any of it.
+
+## QoS: the class you get, not the one you pick
+
+You never write `qosClass`. The kubelet derives it from requests and limits, and
+uses it to decide who dies first when a node runs out of memory.
+
+| Class | You wrote | Evicted |
+| --- | --- | --- |
+| `Guaranteed` | limits == requests, on every container | Last |
+| `Burstable` | requests set, limits higher or absent | In the middle |
+| `BestEffort` | no requests, no limits | First |
+
+So "I left resources unset to keep it simple" means "this Pod is first in line to
+be evicted under pressure". Set requests on anything you care about.
+
+## Steering placement
+
+Four mechanisms, and they answer different questions:
+
+- **`nodeSelector`** — the blunt one. Simple label equality, no operators. Fine for `disktype: ssd`.
+- **Node affinity** — same idea with expressions, plus a *preferred* mode that only influences scoring instead of filtering.
+- **Pod affinity / anti-affinity** — place relative to *other Pods*: keep replicas apart (`topologyKey: kubernetes.io/hostname` spreads across nodes), or keep a cache next to its consumer. Expensive to evaluate; the required form on a large cluster slows scheduling noticeably.
+- **Taints and tolerations** — the inverse of everything above. A taint on a node *repels* Pods; only Pods with a matching toleration may land. This is how control-plane and GPU nodes stay clear of general workloads.
+
+The key asymmetry: a toleration does not *attract*. Tolerating the GPU taint
+means you're allowed on a GPU node, not that you'll get one — that needs affinity
+or a selector too.
+
+`topologySpreadConstraints` is the modern answer to "spread my replicas evenly":
+declare a `topologyKey` and a `maxSkew` and let the scheduler balance, rather than
+hand-rolling anti-affinity rules.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Nodes have 4000m allocatable. Pods request 1500m. How many Pods fit per node?',
+      options: ['2', '2.67', '3', '4'],
+      answer: 0,
+      explain: 'floor(4000/1500) = 2, and 1000m is stranded on every node — free, but too small for a third Pod. Capacity is a floor per node, not a division of the total.',
+    },
+    {
+      q: 'A container sets requests: 100m, limits: 2. It is scheduled onto a busy node and runs slowly. Why?',
+      options: [
+        'The scheduler ignored the limit',
+        'The scheduler only reserved 100m, so the node is packed; the container is throttled when it tries to burst',
+        'CPU limits are not enforced',
+        'The Pod is BestEffort',
+      ],
+      answer: 1,
+      explain: 'Requests drive placement, limits drive runtime enforcement. A tiny request buys a spot on a crowded node; the generous limit is not capacity anyone reserved for you.',
+    },
+    {
+      q: 'A Pod tolerates the `gpu=true:NoSchedule` taint but has no affinity. Where does it land?',
+      options: [
+        'On a GPU node — tolerations attract Pods to matching nodes',
+        'On any node, GPU or not — a toleration only permits, it does not attract',
+        'Pending, until a GPU node is free',
+        'On a GPU node only if it also requests a GPU resource',
+      ],
+      answer: 1,
+      explain: 'Taints repel, tolerations remove the repulsion. Nothing about a toleration steers the Pod toward the tainted node — that needs nodeSelector or affinity.',
+    },
+    {
+      q: 'A container with no requests and no limits is killed when the node runs low on memory. Which QoS class was it, and why did it go first?',
+      options: [
+        'Guaranteed — it had no headroom',
+        'Burstable — it had no limit',
+        'BestEffort — nothing was reserved for it, so it is evicted before Pods that requested memory',
+        'It has no QoS class; eviction is random',
+      ],
+      answer: 2,
+      explain: 'No requests and no limits derives BestEffort, the first class evicted under node pressure. QoS is derived, never declared.',
+    },
+    {
+      q: 'A container is OOMKilled repeatedly. Raising which field fixes it?',
+      options: [
+        'The CPU limit',
+        'The memory limit (and the request, so it is still scheduled somewhere it fits)',
+        'The memory request only — limits are advisory',
+        'maxSurge',
+      ],
+      answer: 1,
+      explain: 'Memory is incompressible: over the limit means killed, not throttled. Raise the limit to stop the kills, and the request so the scheduler places it on a node that genuinely has the memory.',
+    },
+  ]}
+/>
+
+Next: the two things every Pod eventually needs from outside itself — configuration
+and a disk.

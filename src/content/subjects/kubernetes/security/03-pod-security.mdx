@@ -1,0 +1,158 @@
+---
+title: Pod security
+order: 3
+summary: securityContext, the three Pod Security Standards, and the handful of fields that hand over the node.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A container is a process on the node with some namespaces around it. Several Pod
+spec fields punch holes in those namespaces — and a few of them are equivalent to
+root on the machine, which means root on every other Pod scheduled there.
+
+The dangerous set, roughly in order:
+
+| Field | What it hands over |
+| --- | --- |
+| `privileged: true` | Effectively all capabilities, host devices. Game over — this is root on the node. |
+| `hostPID` / `hostNetwork` / `hostIPC` | The node's process tree, network stack, shared memory. See and interfere with everything on the box. |
+| `hostPath` volume | Any path on the node. Mount `/var/lib/kubelet` and read every Pod's Secrets; mount the container socket and start a privileged container. |
+| `allowPrivilegeEscalation: true` | setuid binaries can gain capabilities the parent didn't have. Defaults to **true**. |
+| `runAsUser: 0` (or unset) | Root inside the container — and root in the container is the same UID the kernel sees. |
+| `capabilities.add: [SYS_ADMIN, NET_ADMIN…]` | Piecemeal versions of privileged. `SYS_ADMIN` is close to all of it. |
+
+The through-line: container isolation is kernel namespaces, not a VM. Anything
+sharing a host namespace or the host filesystem escapes it by design.
+
+## A reasonable securityContext
+
+```yaml
+securityContext:                 # Pod level
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+containers:
+  - name: api
+    securityContext:             # container level — wins where they overlap
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+```
+
+`runAsNonRoot: true` is a check, not a setting: the kubelet refuses to start the
+container if the image's user resolves to UID 0. `drop: ["ALL"]` removes even the
+default capability set, which almost nothing needs (binding port 80 is the usual
+exception — use a port above 1024 instead of adding `NET_BIND_SERVICE`).
+`readOnlyRootFilesystem: true` costs you an `emptyDir` for `/tmp` and buys you a
+container an attacker can't write a payload into.
+
+## Pod Security Standards
+
+Three named profiles, defined by the fields above:
+
+- **privileged** — no restrictions. What you'd use for a CNI DaemonSet.
+- **baseline** — blocks the obviously-bad: privileged, hostPID/IPC/Network, hostPath, most capabilities. A normal app passes without changes.
+- **restricted** — baseline plus *requires* `runAsNonRoot`, `allowPrivilegeEscalation: false`, `drop: ["ALL"]`, and a seccomp profile. Apps must be written for it.
+
+**Pod Security admission** enforces them, and it is configured per **namespace**
+with labels, not per Pod:
+
+```yaml
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+```
+
+Three independent modes, which is the useful part: `warn` returns a message to
+whoever applied it, `audit` writes an annotation into the audit log, `enforce`
+rejects the Pod. Roll it out as `warn` first, find out what breaks, then enforce.
+
+Two things to know about enforcement:
+
+<Diagram
+  caption="Pod Security admission runs on the Pod, at creation. Rejecting a Deployment's Pods leaves the Deployment sitting there, green."
+  chart={`flowchart LR
+  apply[kubectl apply Deployment] --> api[API server]
+  api -->|"Deployment accepted"| ok([Deployment exists])
+  ok --> rs[ReplicaSet controller]
+  rs -->|creates Pod| psa{Pod Security<br/>admission}
+  psa -.->|"violates restricted"| rej["Pod rejected<br/>error on the ReplicaSet"]
+  psa -->|compliant| sched[Scheduler]`}
+/>
+
+It checks **Pods**, not Deployments — so a non-compliant Deployment is created
+happily and then produces zero Pods, with the real error buried in the
+ReplicaSet's events rather than anywhere `kubectl get deploy` shows you. And it
+replaced **PodSecurityPolicy**, which was removed in 1.25: PSP could *mutate*
+Pods (fill in defaults) and was bound via RBAC, which is exactly why it was
+confusing enough to delete. PSA only validates.
+
+For anything past the three profiles — "images must come from our registry",
+"every Pod needs a `team` label" — you need a policy engine: Kyverno, or Gatekeeper/OPA.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Why is a hostPath volume mounting /var/lib/kubelet close to a full cluster compromise?',
+      options: [
+        'It fills the node disk',
+        'That path holds every Pod\'s projected Secrets and tokens on that node — reading it gives you their identities',
+        'It disables the kubelet',
+        'It is not dangerous; hostPath is read-only',
+      ],
+      answer: 1,
+      explain: 'Host filesystem access sidesteps container isolation entirely. Node-local secret material is right there, and from there you authenticate to the API server as those workloads.',
+    },
+    {
+      q: 'You label a namespace with `pod-security.kubernetes.io/enforce: restricted` and apply a non-compliant Deployment. What happens?',
+      options: [
+        'The Deployment is rejected immediately',
+        'The Deployment is created, but its Pods are rejected — you see zero replicas and the error is in the ReplicaSet events',
+        'The Pods run with a warning',
+        'The Pods are mutated to comply',
+      ],
+      answer: 1,
+      explain: 'PSA is a Pod-level admission check. The workload object passes and the failure surfaces one layer down — a Deployment that looks applied but never produces a Pod.',
+    },
+    {
+      q: 'What does `runAsNonRoot: true` actually do?',
+      options: [
+        'Sets the container UID to 1000',
+        'Makes the kubelet refuse to start the container if its user resolves to UID 0',
+        'Drops all capabilities',
+        'Enables user namespace remapping',
+      ],
+      answer: 1,
+      explain: 'It is a validation, not an assignment — it does not pick a UID for you. Pair it with runAsUser, or an image that already declares a non-root USER.',
+    },
+    {
+      q: 'Why did Pod Security admission replace PodSecurityPolicy?',
+      options: [
+        'PSP was too strict',
+        'PSP could mutate Pods and was granted via RBAC, making the applied policy hard to predict; PSA only validates, per namespace, with three clear profiles',
+        'PSP did not support seccomp',
+        'PSA is faster',
+      ],
+      answer: 1,
+      explain: 'PSP\'s RBAC-based selection plus mutation meant nobody could tell which policy a Pod would get. PSA trades flexibility for predictability — and pushes the flexible cases to Kyverno or Gatekeeper.',
+    },
+    {
+      q: 'Which default is already unsafe if you never write a securityContext?',
+      options: [
+        'hostNetwork defaults to true',
+        'allowPrivilegeEscalation defaults to true, and the container likely runs as root',
+        'privileged defaults to true',
+        'hostPath is mounted automatically',
+      ],
+      answer: 1,
+      explain: 'The dramatic fields are off by default, but privilege escalation is permitted and an image with no USER runs as root. That is why baseline alone is not much of a bar and restricted is the target.',
+    },
+  ]}
+/>

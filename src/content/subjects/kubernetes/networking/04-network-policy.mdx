@@ -1,0 +1,141 @@
+---
+title: NetworkPolicy
+order: 4
+summary: The cluster is flat by default. Policies are additive allow-lists, and the first one you write changes everything.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Default Kubernetes networking: **every Pod can reach every other Pod, in every
+namespace.** No firewall, no segmentation. A compromised image-resizing worker
+can open a connection straight to the payments database, and nothing in the
+cluster objects.
+
+A **NetworkPolicy** is how you take that away. Three rules govern the whole
+model, and they're unintuitive in combination:
+
+1. A Pod selected by **no** policy allows all traffic.
+2. A Pod selected by **any** policy denies everything in that direction, except what its policies allow.
+3. Policies are **additive** allow-lists. There is no deny rule, and no ordering — the union of every matching policy is what's permitted.
+
+Rule 2 is the switch. The moment one policy selects a Pod for `Ingress`, that Pod
+is default-deny for ingress and only the listed sources get through.
+
+<Diagram
+  caption="db is selected by a policy, so only api reaches it. web is selected by nothing, so it stays wide open."
+  chart={`flowchart LR
+  web([web Pod<br/>no policy selects it]) --> api([api Pod])
+  api -->|"allowed: podSelector app=api"| db([db Pod<br/>policy: Ingress])
+  web -.->|"blocked: not in any allow rule"| db
+  job([batch job]) -.->|blocked| db
+  job --> web`}
+/>
+
+## Default-deny, then open up
+
+The idiomatic pattern is one policy per namespace that selects everything and
+allows nothing:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}        # every Pod in this namespace
+  policyTypes: [Ingress, Egress]
+```
+
+An empty `podSelector` matches all Pods; no `ingress`/`egress` rules means
+nothing is allowed. Then each app ships its own policy allowing exactly its
+callers. Because policies are additive, the specific allows layer on top — the
+deny-all is never "overridden", there's just nothing to override.
+
+**Do this last, in a namespace you understand.** A default-deny egress rule
+blocks DNS, and everything breaks in a way that looks nothing like a network
+problem — `curl api` fails to resolve, apps report timeouts, and the policy is
+the last place anyone looks. Allow UDP/53 to kube-dns before you turn egress on:
+
+```yaml
+egress:
+  - to:
+      - namespaceSelector:
+          matchLabels: { kubernetes.io/metadata.name: kube-system }
+        podSelector:
+          matchLabels: { k8s-app: kube-dns }
+    ports:
+      - { protocol: UDP, port: 53 }
+```
+
+## Selecting the other end
+
+Three peer types, and the difference between two of them is a classic mistake:
+
+- **`podSelector`** — Pods in *this policy's own namespace*.
+- **`namespaceSelector`** — Pods in namespaces matching the label. On its own, **all** Pods in those namespaces.
+- **`ipBlock`** — CIDRs, for anything outside the cluster.
+
+Put `namespaceSelector` and `podSelector` in **one list item** and it means "Pods
+with this label, in namespaces with that label" — an AND. Put them in **two list
+items** and it means "any Pod in those namespaces, OR any Pod with that label
+here" — an OR, and a much wider hole than you meant to open. The YAML difference
+is a single `-`.
+
+## It needs a CNI that implements it
+
+Like Ingress, the object is inert on its own. The API server accepts a
+NetworkPolicy in any cluster; only a CNI plugin that implements policy (Calico,
+Cilium, Antrea…) enforces it. On flannel, your policies apply cleanly, report
+no errors, and block nothing at all. Verify with an actual connection test, never
+by reading `kubectl get netpol`.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'A Pod is selected by no NetworkPolicy at all. What traffic can reach it?',
+      options: [
+        'None — Kubernetes is default-deny',
+        'All of it — a Pod is only restricted once some policy selects it',
+        'Only same-namespace traffic',
+        'Only traffic from the Ingress controller',
+      ],
+      answer: 1,
+      explain: 'The cluster is flat until you say otherwise. Being selected by a policy is what flips a Pod into default-deny for that direction.',
+    },
+    {
+      q: 'A Pod has one policy allowing ingress from `app=api`, and a second allowing ingress from `app=web`. What gets in?',
+      options: [
+        'Only api — the first policy wins',
+        'Only web — the last applied wins',
+        'Both — policies are additive, and the union of allow rules applies',
+        'Neither — conflicting policies deny everything',
+      ],
+      answer: 2,
+      explain: 'There is no ordering and no precedence, because there are no deny rules to conflict with. Everything selecting the Pod contributes allows.',
+    },
+    {
+      q: 'You apply a default-deny policy including Egress. Apps start failing with resolution errors. Why?',
+      options: [
+        'CoreDNS crashed',
+        'Egress deny also blocks UDP/53 to kube-dns — you must explicitly allow DNS',
+        'The policy needs a restart of kube-proxy',
+        'DNS is exempt from NetworkPolicy',
+      ],
+      answer: 1,
+      explain: 'DNS is egress like any other traffic. This is the single most common way a default-deny rollout takes a namespace down.',
+    },
+    {
+      q: 'Your policies are applied and correct, but traffic you meant to block still flows. First thing to check?',
+      options: [
+        'That the CNI plugin actually implements NetworkPolicy — flannel, for instance, does not',
+        'That the Pods have readiness probes',
+        'That kube-proxy is in IPVS mode',
+        'That the namespace has a ResourceQuota',
+      ],
+      answer: 0,
+      explain: 'The API server stores any valid policy regardless of whether anything enforces it. Without a policy-capable CNI the objects are decoration.',
+    },
+  ]}
+/>

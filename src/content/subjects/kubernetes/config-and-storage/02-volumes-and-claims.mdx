@@ -1,0 +1,93 @@
+---
+title: Volumes, PVCs and StorageClasses
+order: 2
+summary: The claim/volume split, dynamic provisioning, and the two reasons a PVC sits Pending forever.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Flashcard from '../../../../components/Flashcard';
+
+A container's filesystem dies with the container — a crash-restart wipes it. An
+`emptyDir` volume survives the container but dies with the **Pod**. Anything that
+must outlive the Pod needs a real volume, and that's a two-object dance.
+
+<Diagram
+  caption="A PVC is a request. A StorageClass provisions. A PV is the resulting disk. The Pod only ever names the claim."
+  chart={`flowchart LR
+  pod([Pod]) -->|volumes.persistentVolumeClaim| pvc["PVC data-0<br/>10Gi, RWO, class: fast"]
+  pvc -->|matches class| sc[StorageClass fast<br/>provisioner: ebs.csi.aws.com]
+  sc -->|creates| pv[PV pvc-8f2a…<br/>10Gi, RWO]
+  pv -->|bound 1:1| pvc
+  pv --> disk[(Cloud disk)]`}
+/>
+
+The split is the point. A **PVC** is what the app author writes: *I want 10Gi,
+read-write-once, of the `fast` class.* A **PV** is the actual volume. The app
+never names a PV — that would tie the workload to one specific disk in one
+specific cluster.
+
+**Dynamic provisioning** closes the loop: a PVC naming a StorageClass causes the
+class's provisioner (a CSI driver) to create a matching PV and bind it. No
+operator, no pre-made disks. Static PVs still exist for the case where the disk
+already exists and you're adopting it.
+
+Binding is **1:1 and permanent**. A PV is bound to exactly one PVC for its life;
+it never gets shared or re-bound to a second claim.
+
+## Access modes are about nodes, not pods
+
+| Mode | Means |
+| --- | --- |
+| `ReadWriteOnce` (RWO) | Mounted read-write by **one node**. Multiple Pods on *that* node can share it. |
+| `ReadOnlyMany` (ROX) | Mounted read-only by many nodes. |
+| `ReadWriteMany` (RWX) | Mounted read-write by many nodes. Needs a filesystem that supports it — NFS, CephFS. Block storage never does. |
+| `ReadWriteOncePod` | One Pod. Full stop. The strict one you actually want for a database. |
+
+RWO is the source of a classic wedge: a Deployment with `strategy: RollingUpdate`
+and an RWO volume tries to start the new Pod before the old one goes away. If the
+scheduler picks a different node, the new Pod cannot attach the volume and hangs
+in `ContainerCreating` while the old Pod refuses to die. Use `strategy: Recreate`
+for single-replica stateful Deployments — or a StatefulSet.
+
+## Why a PVC hangs in Pending
+
+Two causes, and they look identical from `kubectl get pvc`:
+
+1. **No StorageClass did anything.** No `storageClassName`, no default class in the cluster, or a class name with a typo. Nothing is provisioning; the claim just sits there. `kubectl describe pvc` says so.
+2. **`volumeBindingMode: WaitForFirstConsumer`.** This is *correct* behaviour, not a bug — the class deliberately waits until a Pod is scheduled before provisioning, so the disk gets created in the same zone as the node. A PVC with no Pod referencing it stays Pending on purpose. The alternative, `Immediate`, provisions instantly and can strand you with a disk in `eu-west-1a` and the only free capacity in `1b`.
+
+## Reclaim policy
+
+`persistentVolumeReclaimPolicy` decides what happens to the PV when its PVC is
+deleted. `Delete` (the default for dynamic provisioning) destroys the underlying
+cloud disk. `Retain` keeps it, orphaned, for manual recovery. The default means
+`kubectl delete pvc` on a production database deletes the data — the API returns
+success either way.
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'What is the difference between emptyDir and a PVC?',
+      back: 'emptyDir lives and dies with the Pod — good for scratch space and sharing files between containers in one Pod. A PVC is bound to a PV whose lifetime is independent of any Pod.',
+    },
+    {
+      front: 'Why does a Pod reference a PVC and never a PV?',
+      back: 'The PVC is the abstract request (size, access mode, class). Naming a PV would bind the workload to one specific disk in one specific cluster, and dynamic provisioning could not work.',
+    },
+    {
+      front: 'A PVC is Pending and describe says "waiting for first consumer". Bug?',
+      back: 'No. The StorageClass uses volumeBindingMode: WaitForFirstConsumer, so provisioning is deferred until a Pod is scheduled — that way the disk is created in the zone where the Pod actually landed.',
+    },
+    {
+      front: 'RollingUpdate + an RWO volume + a new node = ?',
+      back: 'The new Pod cannot attach a volume still mounted by the old Pod on another node, so it hangs in ContainerCreating. Use strategy: Recreate, or a StatefulSet.',
+    },
+    {
+      front: 'You delete a PVC for a database. What happened to the data?',
+      back: 'With the default Delete reclaim policy, the PV and the underlying cloud disk are gone. Retain would have kept the PV around, released but not erased.',
+    },
+  ]}
+/>
+
+Next: what happens when each replica needs *its own* disk.

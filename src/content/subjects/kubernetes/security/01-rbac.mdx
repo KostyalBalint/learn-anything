@@ -1,0 +1,141 @@
+---
+title: RBAC
+order: 1
+summary: Four objects, purely additive, no deny — and the namespace trap in RoleBinding.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Every request to the API server goes through three gates: **authentication**
+(who are you), **authorization** (may you), **admission** (is this object
+acceptable). RBAC is the second one, and it's built from four objects that split
+along two axes: *what may be done* versus *who may do it*, and *one namespace*
+versus *the whole cluster*.
+
+<Diagram
+  caption="Rules live in Roles. Bindings attach them to subjects. A ClusterRole is reusable in either scope."
+  chart={`flowchart LR
+  subgraph rules[What may be done]
+    r["Role<br/>namespaced rules"]
+    cr["ClusterRole<br/>cluster-wide rules"]
+  end
+  subgraph who[Who may do it]
+    rb["RoleBinding<br/>grants in ONE namespace"]
+    crb["ClusterRoleBinding<br/>grants in EVERY namespace"]
+  end
+  r --> rb
+  cr --> rb
+  cr --> crb
+  rb --> subj["ServiceAccount /<br/>User / Group"]
+  crb --> subj`}
+/>
+
+A rule is a boring tuple — verbs on resources in API groups:
+
+```yaml
+rules:
+  - apiGroups: [""]                 # "" is the core group
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+```
+
+Note `pods/log` — subresources are separate. Granting `get pods` does **not**
+grant log access, and `create pods/exec` (shell into a Pod) is a separate,
+much more dangerous permission than `create pods`.
+
+## Additive only, no deny
+
+RBAC has no deny rule. Permissions are the union of every binding that applies to
+you, and nothing subtracts. So "everything except Secrets" is not expressible —
+you enumerate what's allowed and Secrets simply aren't in the list. If someone
+also has `view` bound cluster-wide, they can read Secrets and no policy you write
+can take it back. You remove the binding instead.
+
+The corollary: `kubectl auth can-i --list --as=system:serviceaccount:prod:api`
+is the only reliable way to know what a subject can do. Reading the Role tells
+you one piece of a union.
+
+## The trap: ClusterRole + RoleBinding
+
+The most-misread pair in Kubernetes:
+
+| Binding | Role reference | Effect |
+| --- | --- | --- |
+| `RoleBinding` | `Role` | Those rules, in the RoleBinding's namespace. |
+| `RoleBinding` | `ClusterRole` | Those rules, **only in the RoleBinding's namespace**. |
+| `ClusterRoleBinding` | `ClusterRole` | Those rules, in **every** namespace, plus cluster-scoped resources. |
+
+Row two is the useful one, and the one people fear. Referencing the built-in
+`edit` ClusterRole from a RoleBinding in `team-a` grants edit **only in
+`team-a`** — the ClusterRole is a reusable rule set, and the *binding* decides the
+scope. Row three is where the accident lives: the same reference in a
+ClusterRoleBinding hands over the entire cluster.
+
+Cluster-scoped resources (nodes, PVs, namespaces themselves) can only be granted
+by a ClusterRoleBinding — there's no namespace to scope them to.
+
+## The built-ins
+
+`view` (read, no Secrets), `edit` (write, no RBAC), `admin` (edit + manage RBAC
+within a namespace), `cluster-admin` (everything, everywhere). Bind the first
+three with a **RoleBinding** per namespace and they're reasonable defaults. Bind
+them with a ClusterRoleBinding and you've quietly gone cluster-wide.
+
+Also worth knowing: `escalate` and `bind`. Ordinarily you cannot create a Role
+with permissions you don't have — that's what stops `edit` from becoming
+`cluster-admin`. Those two verbs remove that check, so granting them is granting
+everything, one step removed.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'A RoleBinding in namespace `team-a` references the ClusterRole `edit`. What does the subject get?',
+      options: [
+        'Edit across the whole cluster — the role is a ClusterRole',
+        'Edit only in team-a — the binding sets the scope, the ClusterRole is just a reusable rule set',
+        'Nothing; a RoleBinding cannot reference a ClusterRole',
+        'Read-only access in team-a',
+      ],
+      answer: 1,
+      explain: 'This is the intended pattern: define rules once cluster-wide, grant them per namespace. Scope comes from the binding kind, not the role kind.',
+    },
+    {
+      q: 'You want a user to do everything in a namespace except read Secrets. How?',
+      options: [
+        'Add a deny rule for secrets',
+        'Bind `edit` and add a Role denying secrets',
+        'You cannot deny — write a Role enumerating the allowed resources, leaving secrets out, and make sure no other binding grants them',
+        'Set a ResourceQuota on secrets',
+      ],
+      answer: 2,
+      explain: 'RBAC is purely additive with no deny. Exclusion means "never granted by any binding" — which is why auditing means checking the union, e.g. with kubectl auth can-i --list.',
+    },
+    {
+      q: 'A ServiceAccount can `get pods` but `kubectl logs` is forbidden. Why?',
+      options: [
+        'Logs require ClusterRole',
+        'pods/log is a separate subresource and needs its own entry in verbs/resources',
+        'Log access is controlled by the kubelet, not RBAC',
+        'The Pod is in another namespace',
+      ],
+      answer: 1,
+      explain: 'Subresources are authorized independently — pods/log for logs, pods/exec for a shell. That separation is what lets you grant read access without granting a shell into production.',
+    },
+    {
+      q: 'Which grant is cluster-wide no matter what?',
+      options: [
+        'RoleBinding → Role',
+        'RoleBinding → ClusterRole',
+        'ClusterRoleBinding → ClusterRole',
+        'A Role with apiGroups: ["*"]',
+      ],
+      answer: 2,
+      explain: 'ClusterRoleBinding grants the rules in every namespace and over cluster-scoped resources. It is also the only way to grant nodes or PVs, since those have no namespace.',
+    },
+  ]}
+/>
+
+Next: RBAC decides what a subject may do. The next page is about which subject
+your Pod actually is.

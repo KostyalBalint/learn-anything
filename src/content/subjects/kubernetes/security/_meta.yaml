@@ -1,5 +1,5 @@
 # Section metadata. Same shape as a subject _meta.yaml, minus summary.
 # `order` places this section among the subject's pages (they share one ordering space).
-title: Networking
-order: 6
-icon: network
+title: Security
+order: 7
+icon: shield

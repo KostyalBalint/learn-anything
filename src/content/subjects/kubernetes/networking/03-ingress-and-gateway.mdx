@@ -1,0 +1,124 @@
+---
+title: Ingress and the Gateway API
+order: 3
+summary: One load balancer in front of many Services — and why the replacement for Ingress is mostly an org chart.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A `LoadBalancer` Service gets you one cloud load balancer, one IP and one bill,
+per Service. Twenty microservices means twenty of each. **Ingress** collapses
+that: one load balancer at the edge, routing by host and path to ClusterIP
+Services behind it.
+
+<Diagram
+  caption="One controller, one LB, many backends. The Ingress object is only routing rules — the controller does the work."
+  chart={`flowchart LR
+  net((Internet)) --> lb[Cloud LB<br/>one IP]
+  lb --> ic["Ingress controller Pods<br/>(nginx, Traefik, Envoy…)"]
+  ic -->|"Host: shop.example.com<br/>path /api"| s1[Service api]
+  ic -->|"path /"| s2[Service web]
+  ic -->|"Host: admin.example.com"| s3[Service admin]
+  s1 --> p1([Pods])
+  s2 --> p2([Pods])
+  s3 --> p3([Pods])`}
+/>
+
+## The Ingress object does nothing
+
+This trips people up: creating an Ingress in a cluster with no **Ingress
+controller** installed is a no-op. The object is inert routing configuration. A
+controller — nginx, Traefik, HAProxy, a cloud one — watches Ingress objects and
+programs an actual proxy. No controller, no traffic, no error. Just an Ingress
+with no address, forever.
+
+`ingressClassName` picks *which* controller adopts the object, for clusters
+running more than one (an internal and an external one, typically).
+
+## Where Ingress runs out
+
+The spec covers HTTP host/path routing and TLS termination. It does not cover
+header matching, traffic splitting, retries, gRPC, or anything else — so every
+controller grew its own annotations:
+
+```yaml
+nginx.ingress.kubernetes.io/rewrite-target: /$2
+nginx.ingress.kubernetes.io/canary-weight: "20"
+```
+
+Which are, by definition, not portable. "Standard Ingress plus forty vendor
+annotations" is the normal state of a production cluster, and swapping
+controllers means rewriting all of them.
+
+## Gateway API: the same traffic, different owners
+
+The **Gateway API** is the successor, and its central move is splitting one
+object into three, along the lines of who actually owns what:
+
+| Resource | Owned by | Says |
+| --- | --- | --- |
+| `GatewayClass` | The cluster provider | What kind of infrastructure exists (this is Envoy, this is a cloud LB). |
+| `Gateway` | The platform team | An actual listener: ports, protocol, TLS certs, which Routes may attach. |
+| `HTTPRoute` | The app team | Match on host, path, header, method; split by weight; rewrite; point at Services. |
+
+That's the real motivation. With Ingress, changing a path meant editing an object
+that also held the TLS config and the LB annotations — so either the app team got
+edit rights over the edge, or every route change went through the platform team.
+Gateway API lets a platform team own the `Gateway` and hand app teams their own
+`HTTPRoute` objects in their own namespaces, attaching to it only where allowed.
+
+The features that were annotations become spec: weighted backends (canaries),
+header matching, request mirroring, typed filters. `TCPRoute` and `GRPCRoute`
+cover what Ingress never could.
+
+Ingress is not going away — it's frozen, not deprecated, and it's fine for
+"one host, a few paths". Reach for Gateway API when you need routing the spec
+can't express, or when the ownership boundary above is a real problem for you.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'You apply an Ingress. It never gets an address and no traffic flows. No errors. Why?',
+      options: [
+        'The Service must be type LoadBalancer',
+        'No Ingress controller is installed — the Ingress object is only configuration for a controller that has to exist',
+        'Ingress requires a Gateway',
+        'The Ingress needs an explicit ClusterIP',
+      ],
+      answer: 1,
+      explain: 'Nothing in Kubernetes serves an Ingress by itself. Without a controller watching for it, the object sits there valid and inert.',
+    },
+    {
+      q: 'Why did every Ingress controller end up with its own annotations?',
+      options: [
+        'The spec forbids extensions',
+        'The spec only standardises host/path routing and TLS, so anything else — rewrites, canaries, header matching — had to go somewhere',
+        'Annotations are faster than spec fields',
+        'To lock users in deliberately',
+      ],
+      answer: 1,
+      explain: 'The narrow spec pushed real-world features into vendor annotations, which is exactly the portability problem Gateway API sets out to fix by making them typed spec fields.',
+    },
+    {
+      q: 'In the Gateway API, which object would an application team normally own?',
+      options: ['GatewayClass', 'Gateway', 'HTTPRoute', 'The Ingress controller Deployment'],
+      answer: 2,
+      explain: 'HTTPRoute holds the app-level routing and lives in the app namespace. The Gateway (ports, TLS, listeners) stays with the platform team, and HTTPRoutes attach to it.',
+    },
+    {
+      q: 'What does Ingress give you over one LoadBalancer Service per app?',
+      options: [
+        'Faster routing',
+        'One load balancer and one IP shared across many Services, routed by host and path',
+        'Automatic TLS certificates',
+        'Pod-level access control',
+      ],
+      answer: 1,
+      explain: 'That consolidation is the whole point — the per-Service cloud LB is what gets expensive. TLS certs come from something like cert-manager, not from Ingress itself.',
+    },
+  ]}
+/>
+
+Next: routing decides where traffic *can* go. The next page decides where it *may*.

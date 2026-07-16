@@ -79,6 +79,66 @@ export const MODELS: Record<string, Model> = {
   },
 
   /**
+   * Kubernetes scheduling as bin packing.
+   * A node fits floor(allocatable / request) pods, and the remainder is stranded
+   * — it counts as free CPU but can never hold another replica. Capacity is
+   * therefore nodes * podsPerNode, not totalCpu / request.
+   */
+  scheduler: {
+    params: [
+      { name: 'nodes', label: 'Nodes', min: 1, max: 12, default: 4 },
+      { name: 'allocatable', label: 'Allocatable CPU per node', min: 1000, max: 16000, step: 500, default: 4000, unit: 'm' },
+      { name: 'request', label: 'CPU request per pod', min: 100, max: 4000, step: 100, default: 600, unit: 'm' },
+      { name: 'replicas', label: 'Replicas wanted', min: 1, max: 60, default: 24 },
+    ],
+    run: ({ nodes, allocatable, request, replicas }) => {
+      const perNode = Math.floor(allocatable / request);
+      const fit = (n: number) => Math.min(replicas, n * perNode);
+
+      const capacity = nodes * perNode;
+      const scheduled = fit(nodes);
+      const pending = replicas - scheduled;
+      const strandedPerNode = allocatable - perNode * request;
+
+      const data = Array.from({ length: 12 }, (_, i) => {
+        const n = i + 1;
+        return { nodes: n, running: fit(n), pending: replicas - fit(n) };
+      });
+
+      return {
+        readouts: [
+          {
+            label: 'Pods per node',
+            value: perNode,
+            hint: `floor(${allocatable}m / ${request}m) — ${strandedPerNode}m stranded per node`,
+          },
+          {
+            label: 'Pending',
+            value: pending,
+            hint: pending > 0 ? `capacity is ${capacity} pods` : 'every replica fits',
+          },
+          {
+            label: 'Requested CPU',
+            value: `${Math.round((scheduled * request) / (nodes * allocatable) * 100)}%`,
+            hint: 'of allocatable — reserved, not necessarily used',
+          },
+        ],
+        chart: {
+          type: 'bar',
+          data,
+          xKey: 'nodes',
+          xLabel: 'nodes',
+          yLabel: 'pods',
+          series: [
+            { key: 'running', label: 'Running', stack: true },
+            { key: 'pending', label: 'Pending', stack: true },
+          ],
+        },
+      };
+    },
+  },
+
+  /**
    * GitLab CI pipeline wall-clock time, stage-gated vs `needs:` (DAG), as a
    * function of how many jobs can run at once (runner concurrency).
    *

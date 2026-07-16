@@ -1,0 +1,109 @@
+---
+title: StatefulSet storage identity
+order: 3
+summary: One PVC per replica, kept across rescheduling — and deliberately kept after deletion too.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A Deployment's Pods are interchangeable, so a volume attached to "the
+Deployment" makes no sense — every replica would want the same disk. A
+**StatefulSet** exists for the opposite case: replica `db-0` is not replica
+`db-1`, and each one owns its data.
+
+Three guarantees follow from that, and they're a package deal:
+
+- **Stable name.** `db-0`, `db-1`, `db-2` — ordinal, not a random suffix.
+- **Stable network identity.** `db-0.db.prod.svc.cluster.local`, via the headless Service.
+- **Stable storage.** Its own PVC, reattached to whatever node the Pod lands on.
+
+<Diagram
+  caption="volumeClaimTemplates stamps out one PVC per replica. The name encodes the ordinal, which is how the pairing survives rescheduling."
+  chart={`flowchart TD
+  sts["StatefulSet db<br/>volumeClaimTemplates: data"] --> p0([db-0])
+  sts --> p1([db-1])
+  sts --> p2([db-2])
+  p0 --> c0[PVC data-db-0] --> v0[(PV)]
+  p1 --> c1[PVC data-db-1] --> v1[(PV)]
+  p2 --> c2[PVC data-db-2] --> v2[(PV)]`}
+/>
+
+## volumeClaimTemplates, not volumes
+
+A Deployment names an existing PVC — everyone shares it. A StatefulSet declares a
+**template**, and the controller creates one PVC per replica, named
+`<template>-<statefulset>-<ordinal>`. That naming *is* the mechanism: when `db-1`
+is deleted and recreated on another node, the controller looks for `data-db-1`,
+finds it already exists, and reattaches it. Same disk, same data, new Pod.
+
+Scale to 5 and you get `data-db-3` and `data-db-4`, provisioned fresh.
+
+## Deleting a StatefulSet keeps the disks
+
+Scale down to 3 and the PVCs for `db-3`/`db-4` are **not** deleted. Delete the
+StatefulSet entirely and the PVCs still stay. This is on purpose: the controller
+assumes the data matters more than the tidiness, and scaling back up must
+reattach the original volumes.
+
+The consequence is that a scale-down is not a cleanup, and the disks keep costing
+money until someone deletes the PVCs by hand. Newer clusters have
+`persistentVolumeClaimRetentionPolicy` to opt into deletion on scale-down or
+delete — an opt-in, never the default.
+
+## Ordering, and how to turn it off
+
+By default (`podManagementPolicy: OrderedReady`) the controller starts `db-0`,
+waits for it to be Ready, then starts `db-1`. Scale-down runs in reverse:
+highest ordinal first. That's what a primary/replica database wants, and it's
+also why a StatefulSet whose `db-0` is crashlooping will never start `db-1` — the
+rollout is stuck behind a Pod that never goes Ready.
+
+Set `podManagementPolicy: Parallel` when the replicas are peers with no boot
+ordering (a sharded cache, say). You keep the identity and the per-replica
+storage, and lose only the sequencing.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'A StatefulSet `db` uses volumeClaimTemplates named `data`. What PVC does the second replica get?',
+      options: ['data-db', 'data-db-1', 'db-data-2', 'A random name, like a ReplicaSet suffix'],
+      answer: 1,
+      explain: 'Ordinals start at 0, so the second replica is db-1 and its claim is data-db-1. The deterministic name is exactly what lets the controller reattach it after rescheduling.',
+    },
+    {
+      q: 'You scale a StatefulSet from 5 to 3. What happens to the two disks?',
+      options: [
+        'Deleted with the Pods',
+        'Kept — PVCs survive scale-down, so scaling back up reattaches the original data',
+        'Kept, but only for 24 hours',
+        'Merged into the remaining PVCs',
+      ],
+      answer: 1,
+      explain: 'Retention is the default. It is also why scale-down does not stop the storage bill — either delete data-db-3/4 by hand or set persistentVolumeClaimRetentionPolicy.',
+    },
+    {
+      q: 'db-0 is crashlooping. db-1 and db-2 never start. Why?',
+      options: [
+        'The volumes are RWO',
+        'podManagementPolicy defaults to OrderedReady — the controller will not start db-1 until db-0 is Ready',
+        'The headless Service has no endpoints',
+        'The PVCs failed to bind',
+      ],
+      answer: 1,
+      explain: 'Ordered startup blocks on the lowest ordinal. If the replicas are true peers, podManagementPolicy: Parallel removes the sequencing while keeping identity and storage.',
+    },
+    {
+      q: 'Why does a StatefulSet need a headless Service?',
+      options: [
+        'To load-balance writes across replicas',
+        'To give each Pod a resolvable per-replica DNS name like db-0.db, since the point is addressing a *specific* member',
+        'To provision the PVCs',
+        'It does not; it is optional',
+      ],
+      answer: 1,
+      explain: 'A ClusterIP would hand you "whichever replica". Headless DNS returns per-Pod records, which is the only way to say "connect to the primary, db-0".',
+    },
+  ]}
+/>
