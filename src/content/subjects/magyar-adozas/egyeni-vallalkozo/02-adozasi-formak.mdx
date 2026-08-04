@@ -1,0 +1,121 @@
+---
+title: Melyik adózási forma?
+order: 2
+summary: KATA, átalányadózás, VSZJA — három jövedelemszámítás, három korlát. Hol vannak a metszéspontok, és melyik döntés visszafordíthatatlan 12 hónapra.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Simulation from '../../../../components/Simulation';
+import Quiz from '../../../../components/Quiz';
+
+A három forma **nem az adókulcsban** különbözik. Mindhárom ugyanazokat a
+kulcsokat használja (15% szja, 18,5% tb, 13% szocho) — az különbözteti meg őket,
+**hogyan lesz a bevételből jövedelem**.
+
+| | KATA | Átalányadózás | VSZJA |
+| --- | --- | --- | --- |
+| Jövedelemszámítás | nincs — tételes adó | bevétel × (1 − 45/80/90%) | bevétel − tételes költség |
+| Éves korlát | 18 M Ft | 38 736 000 Ft (kiskeresk. 193 680 000) | nincs |
+| Kinek számlázhatsz | csak magánszemélynek | bárkinek | bárkinek |
+| Ki lehet | csak főfoglalkozású | bárki | bárki |
+| Havi fix teher | 50 000 Ft | 101 682 Ft-tól (főfogl.) | 101 682 Ft-tól (főfogl.) |
+| Költségszámla kell? | nem | nem | **igen, mindenre** |
+| Nyilvántartás | bevételi nyilatkozat | bevételi nyilvántartás | pénztárkönyv + részletezők |
+| Kedvezményalap | nincs | átalányjövedelem | csak a vállalkozói kivét |
+
+## A döntés menete
+
+<Diagram
+  caption="A korlátok szűrnek először, a költséghányad dönt utána."
+  chart={`flowchart TD
+    S["Új egyéni vállalkozó"] --> Q1{"Van heti 36 órás<br/>munkaviszonyod,<br/>vagy nyugdíjas vagy,<br/>vagy nappalis?"}
+    Q1 -->|igen| NOKATA["KATA kizárva<br/>de: nincs minimumjárulék sem"]
+    Q1 -->|nem| Q2{"Kizárólag<br/>magánszemélyeknek<br/>számlázol,<br/>18 M Ft alatt?"}
+    Q2 -->|igen| KATA["KATA<br/>600 000 Ft / év fix"]
+    Q2 -->|nem| Q3
+    NOKATA --> Q3{"A valódi költséged<br/>több mint a<br/>költséghányad?"}
+    Q3 -->|"nem — pl. szellemi<br/>szolgáltatás"| ATA["Átalányadózás"]
+    Q3 -->|"igen — anyag, alvállalkozó,<br/>eszköz, bér"| VSZJA["VSZJA"]
+    Q3 -->|"bevétel > 38,7 M Ft"| VSZJA
+    style KATA fill:#f0fdf4,stroke:#22c55e
+    style ATA fill:#eef2ff,stroke:#6366f1
+    style VSZJA fill:#fef3c7,stroke:#f59e0b`}
+/>
+
+## Hol metszik egymást
+
+Told a csúszkákat: a **valódi költséghányad** az egyetlen paraméter, ami átbillenti
+a döntést átalányadó és VSZJA között. 45%-os költséghányad mellett nagyjából ott
+van a metszéspont, ahol a valós költséged is 45% körül jár — alatta az átalányadó
+nyer, felette a tételes elszámolás.
+
+<Simulation client:visible model="ado-forma" title="Ugyanaz a vállalkozó, három adózási forma" />
+
+A modell főfoglalkozásúval számol, a VSZJA-ágon a kivétet a minimum
+járulékalapon tartja, és a nyereséget osztalékalapként veszi ki. Az áfa és az
+iparűzési adó egyikben sincs benne — azok mindhárom formára ugyanúgy rárakódnak.
+
+Néhány dolog, ami a görbékből leolvasható:
+
+- **A KATA vonala vízszintes** 18 millióig, aztán 40%-os meredekséggel megtörik.
+  Ahol használható, ott verhetetlen — csak épp ritkán használható.
+- **Az átalányadó és a VSZJA görbéje alul összeér**, mert mindkettőt a
+  minimumjárulék uralja. Kis bevételnél a forma alig számít.
+- A **38,7 milliós határ** fölött az átalányadó egyszerűen nem létezik.
+
+## Amit a döntésnél nem szabad elfelejteni
+
+**A rossz irányba is van visszaút, de 12 hónapba kerül.** Ha az átalányadózásra
+vagy a katára való jogosultságod megszűnik, a megszűnés évére és az azt követő
+12 hónapra nem választhatod újra.
+
+**Az átalányadó bukása visszamenőleges.** Az értékhatár túllépésekor **az adóév
+egészére** VSZJA-ra kell áttérni — pénztárkönyvvel, tételes költségekkel. Ezért
+kell átalányadózóként is megőrizni minden költségszámlát.
+
+**A KATA nem a bevételi keretnél szokott elbukni,** hanem az első kifizetői
+számlánál. Egyetlen Kft.-nek kiállított számla megszünteti az adóalanyiságot,
+visszamenőleg a bevételt megelőző nappal.
+
+**A kedvezmények nem semlegesek a formára.** Nagy családi kedvezménnyel a KATA a
+legrosszabb (nincs mihez érvényesíteni), a VSZJA pedig csak akkor jó, ha magas a
+kivét.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Egy grafikus 12 millió forint bevételt vár, ügyfelei cégek, valódi költsége a bevétel 10%-a. Melyik forma jön szóba?',
+      options: [
+        'KATA, mert 18 millió alatt van',
+        'Átalányadózás 45%-os költséghányaddal',
+        'VSZJA, mert a tételes elszámolás mindig kedvezőbb',
+        'Bármelyik, a teher azonos',
+      ],
+      answer: 1,
+      explain: 'A KATA-t a kifizetői (céges) számlázás kizárja. A valódi 10%-os költség jóval kisebb a 45%-os költséghányadnál, tehát az átalányadó ad kisebb adóalapot.',
+    },
+    {
+      q: 'Mi történik, ha egy átalányadózó vállalkozó bevétele novemberben átlépi a 38 736 000 forintot?',
+      options: [
+        'Novembertől VSZJA szerint adózik, az addigi hónapok maradnak',
+        'A túllépő rész után 40% különadót fizet',
+        'Az adóév egészére visszamenőleg át kell térnie a VSZJA-ra',
+        'A következő évtől nem választhatja újra az átalányadózást, de az idei év marad',
+      ],
+      answer: 2,
+      explain: 'A jogosultság az év elejéig visszamenőleg szűnik meg: a teljes adóévre tételes költségelszámolás, pénztárkönyv és részletező nyilvántartások kellenek. Emellett 12 hónapos visszatérési tilalom is jár.',
+    },
+    {
+      q: 'Miért ér össze alul az átalányadó és a VSZJA görbéje?',
+      options: [
+        'Mert kis bevételnél mindkettőnél ugyanaz a 15%-os szja-kulcs',
+        'Mert a minimum járulékalap mindkét formánál ugyanaz, és kis bevételnél az uralja a terhet',
+        'Mert az adómentes 1 936 800 forint mindkét formánál él',
+        'Mert a költséghányad kis bevételnél nem alkalmazható',
+      ],
+      answer: 1,
+      explain: 'A főfoglalkozású minimum közteher havi 101 682 Ft mindkét formában, függetlenül a jövedelemtől. Amíg ez dominál, a jövedelemszámítás módja alig számít.',
+    },
+  ]}
+/>

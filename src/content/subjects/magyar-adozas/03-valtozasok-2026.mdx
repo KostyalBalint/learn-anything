@@ -1,0 +1,147 @@
+---
+title: Mi változott 2026-ban
+order: 4
+summary: Nyolc változás egy helyen — költséghányad, szocho-alap, áfahatár, bevallási gyakoriság, e-nyugta —, és a források, ahol mindez ellenőrizhető.
+---
+
+import Chart from '../../../components/Chart';
+import Quiz from '../../../components/Quiz';
+
+Ha egyetlen oldalt olvasol el ebből a subjectből, ez legyen az. A 2026-os év
+szokatlanul kedvező volt az egyéni vállalkozóknak: két érdemi teherkönnyítés,
+egy adminisztratív egyszerűsítés, és egy nagy, de csak szűk körre vonatkozó
+kötelezettség.
+
+## A nyolc változás
+
+| # | Változás | 2025 | 2026 | Kit érint |
+| --- | --- | --- | --- | --- |
+| 1 | **Átalányadós költséghányad** | 40% | **45%** (2027-től 50%) | minden átalányadózó a 45%-os sávban |
+| 2 | **Szocho minimum alapja** | minimálbér **112,5%**-a | minimálbér **100%**-a | minden főfoglalkozású |
+| 3 | **Alanyi áfamentesség határa** | 18 M Ft | **20 M Ft** | mindenki |
+| 4 | **VSZJA-s járulékbevallás** | havi | **negyedéves** (2658) | VSZJA-s vállalkozók |
+| 5 | **Minimálbér / gar. bérminimum** | 290 800 / 348 800 | **322 800 / 373 200** | minden határ, ami ebből származik |
+| 6 | **Családi kedvezmény** | (júliustól emelt) | **133 340 / 266 660 / 440 000 Ft** adóalap | gyermeket nevelők |
+| 7 | **Két gyermeket nevelő anyák szja-mentessége** | nem volt | **indul**, 1986-ban vagy később születetteknek | kétgyermekes anyák |
+| 8 | **e-nyugta** | önkéntes | **2026. szeptember 1-től kötelező** | nyugtaadásra kötelezettek (~270 ezer vállalkozás) |
+
+## Az első kettő együtt
+
+A költséghányad-emelés és a szocho-szorzó eltörlése ugyanazt a vállalkozót
+érinti, és összeadódnak. Egy 45%-os sávban lévő átalányadózónál a különbség
+látványos:
+
+export const osszehasonlitas = (() => {
+  const eves = (bevetel, kh, mentes, minAlap, szochoAlap) => {
+    const jov = bevetel * (1 - kh);
+    const szjaAlap = Math.max(0, jov - mentes);
+    const jarulek = Math.max(szjaAlap, minAlap);
+    const szocho = Math.max(szjaAlap, szochoAlap);
+    return Math.round((szjaAlap * 0.15 + jarulek * 0.185 + szocho * 0.13) / 1000);
+  };
+  const rows = [];
+  for (let m = 4; m <= 24; m += 2) {
+    const be = m * 1_000_000;
+    rows.push({
+      bevetel: m,
+      // 2025: 40% költséghányad, 1 744 800 mentes, szocho-alap 112,5%
+      '2025': eves(be, 0.4, 1_744_800, 290_800 * 12, 290_800 * 1.125 * 12),
+      // 2026: 45% költséghányad, 1 936 800 mentes, szocho-alap 100%
+      '2026': eves(be, 0.45, 1_936_800, 322_800 * 12, 322_800 * 12),
+    });
+  }
+  return rows;
+})();
+
+<Chart
+  client:visible
+  type="line"
+  data={osszehasonlitas}
+  xKey="bevetel"
+  xLabel="éves bevétel (millió Ft)"
+  yLabel="éves közteher (ezer Ft)"
+  series={[
+    { key: '2025', label: '2025-ös szabályok' },
+    { key: '2026', label: '2026-os szabályok' },
+  ]}
+/>
+
+Az ábra főfoglalkozású, 45%-os (2025-ben 40%-os) költséghányadú átalányadózóval
+számol, minimálbér-alapú minimumjárulékkal. A minimumteher alul így is nőtt — a
+minimálbér 11%-os emelése miatt —, de a nagyobb bevételi sávokban a 2026-os
+szabályok tartósan kedvezőbbek.
+
+## Amit gyakran tévesen írnak 2026-ról
+
+| Állítás | Valóság |
+| --- | --- |
+| „Az átalányadós költséghányad 40%" | **45%** 2026-tól |
+| „A szocho alapja a minimálbér 112,5%-a" | a szorzót **2026. január 1-jétől nem kell alkalmazni** |
+| „Az alanyi áfamentesség határa 18 millió" | **20 millió** 2026-tól |
+| „Az átalányadóból 4 évig nem lehet visszatérni" | **12 hónap** — a 4 éves szabály 2021 előtti |
+| „Az átalányadózáshoz előző évi bevételi korlát is van" | **2023 óta nincs** ilyen feltétel |
+| „Az átalányadózó a bevétel 80%-a után fizet iparűzési adót" | **2023-ban megszűnt**, a sávos rendszer váltotta fel |
+| „A KATA-s tételes HIPA 50 000 Ft/év" | jogcímként **megszűnt** 2023-ban (az összeg a legalsó sávban véletlenül ugyanannyi) |
+| „A KATA-ban van 25 000 és 75 000 Ft-os tétel is" | csak **50 000 Ft** létezik; a nem főfoglalkozásúak eleve nem lehetnek kataalanyok |
+| „Az eÁFA 2026-tól kötelező" | **önkéntes**, kötelezővé tételi dátum nincs jogszabályban |
+| „A kézi számlatömb megszűnt" | **használható**, csak 4 napon belüli adatszolgáltatással jár |
+
+## Hol nézd meg magad
+
+Ez az anyag oktatási célú összefoglaló, nem adótanácsadás. A számok 2026-os NAV
+információs füzetekből és a hatályos jogszabályokból származnak — konkrét ügyben
+ezeket érdemes megnyitni:
+
+- **NAV 3. sz. információs füzet** — Egyéni vállalkozók szja- és
+  járulékkötelezettsége
+- **NAV 100. sz. füzet** — Az egyéni vállalkozók átalányadózásának alapvető
+  szabályai
+- **NAV 99. sz. füzet** — Kisadózó vállalkozók tételes adója
+- **NAV 73. sz. füzet** — Szja adóalap-kedvezmények
+- **NAV 24. sz. füzet** — Bevallási, adófizetési információk
+- **Nemzeti Jogszabálytár** (`njt.hu`) — Szja tv. (1995. évi CXVII.), Tbj.
+  (2019. évi CXXII.), Szocho tv. (2018. évi LII.), Kata tv. (2022. évi XIII.),
+  Htv. (1990. évi C.), Áfa tv. (2007. évi CXXVII.)
+- **426/2025. (XII. 23.) Korm. rendelet** — a 2026-os minimálbér és garantált
+  bérminimum
+- A helyi iparűzési adó kulcsát és a mentességeket **a saját önkormányzatod
+  rendelete** mondja meg — erre országos lista nincs.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Melyik két változás könnyítette 2026-ban érdemben a főfoglalkozású átalányadózó terhét?',
+      options: [
+        'Az szja-kulcs csökkentése és az áfahatár emelése',
+        'A költséghányad 45%-ra emelése és a szocho 112,5%-os szorzójának eltörlése',
+        'A negyedéves bevallás és az e-nyugta bevezetése',
+        'A KATA keretének emelése és a családi kedvezmény duplázása',
+      ],
+      answer: 1,
+      explain: 'Az szja-kulcs 15% maradt, a szocho 13%. Az adóalap csökkent mindkét ponton: nagyobb költséghányad, kisebb minimum szocho-alap.',
+    },
+    {
+      q: 'Egy 2026-os cikk azt írja, hogy az alanyi áfamentesség határa 18 millió forint. Mi a helyzet?',
+      options: [
+        'Igaz, a határ nem változott',
+        'Elavult: a 18 millió a 2025-ös érték, 2026-ban 20 millió',
+        'Elavult: 2026-ban 22 millió',
+        'Csak kiskereskedőkre igaz a 18 millió',
+      ],
+      answer: 1,
+      explain: '2024: 12 M, 2025: 18 M, 2026: 20 M. A 22 és 24 milliós lépcső 2027-re és 2028-ra tervezett.',
+    },
+    {
+      q: 'Kit érint a 2026. szeptember 1-től kötelező e-nyugta?',
+      options: [
+        'Minden egyéni vállalkozót',
+        'Csak a nyugtaadásra kötelezetteket — fodrász, autószerelő, taxis, szálláshely-szolgáltató',
+        'Csak az áfás vállalkozókat',
+        'Csak azokat, akik online pénztárgépet használnak',
+      ],
+      answer: 1,
+      explain: 'Kb. 270 ezer vállalkozás. Aki kizárólag számlát állít ki — a tipikus B2B szolgáltató —, azt nem érinti. Az online pénztárgépesek 2028-ig fokozatosan térnek át.',
+    },
+  ]}
+/>

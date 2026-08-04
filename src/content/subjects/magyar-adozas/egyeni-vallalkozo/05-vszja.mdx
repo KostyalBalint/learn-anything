@@ -1,0 +1,171 @@
+---
+title: Vállalkozói jövedelem szerinti adózás
+order: 5
+summary: 9% + 15% + 13% két lépcsőben, tételes költségekkel. A kivét szerepe, a jövedelemminimum 2%-os csapdája, és miért veszíti el a kedvezményeit, aki alacsony kivéttel dolgozik.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A VSZJA a „rendes" vállalkozói adózás: **tételes költségelszámolás**, pénztárkönyv,
+és a Kft.-hez hasonló kétlépcsős szerkezet — előbb a nyereség adózik, aztán a
+kivont pénz.
+
+<Diagram
+  caption="A VSZJA két lépcsője. A kivét külön ágon, az összevont adóalapban adózik."
+  chart={`flowchart TD
+    B["Vállalkozói bevétel"] --> K["− elszámolt költségek<br/>(ebben a vállalkozói kivét is)"]
+    K --> A["Vállalkozói adóalap"]
+    A --> SZJA9["Vállalkozói szja<br/>9%"]
+    A --> AU["Adózás utáni<br/>vállalkozói jövedelem"]
+    AU --> OA["Vállalkozói osztalékalap"]
+    OA --> D15["szja 15%"]
+    OA --> D13["szocho 13%<br/>plafon: 7 747 200 Ft-ig"]
+    K --> KIV["Vállalkozói kivét<br/>= a saját munkád díja"]
+    KIV --> KA["összevont adóalap<br/>szja 15% + tb 18,5% + szocho 13%"]
+    style SZJA9 fill:#fef3c7,stroke:#f59e0b
+    style D15 fill:#fee2e2,stroke:#ef4444
+    style D13 fill:#fee2e2,stroke:#ef4444
+    style KA fill:#eef2ff,stroke:#6366f1`}
+/>
+
+Plafon alatt a teljes lánc nagyjából **34,5%** effektív terhet ad az osztalékként
+kivett pénzen: 9%, majd a maradékon 15 + 13%.
+
+## A vállalkozói kivét
+
+A kivét a **saját munkád díjazása**, és az összegét te magad határozod meg. Ez a
+VSZJA legfontosabb szabályozó karja:
+
+- költségként csökkenti a vállalkozói adóalapot,
+- de nálad **összevont adóalapos jövedelem** lesz: 15% szja, 18,5% tb-járulék,
+  13% szocho,
+- **vele szemben semmilyen költség vagy költséghányad nem számolható el**,
+- és — ez a kulcs — **az szja-kedvezmények alapja kizárólag a kivét**.
+
+Aki alacsony kivéttel és magas osztalékkal dolgozik, adót spórol a járulékokon,
+**de elveszíti a családi kedvezményt, a személyi kedvezményt és az anyák
+kedvezményét is**, mert azoknak nincs mihez kapcsolódniuk. A 9%-os vállalkozói
+szja-t és az osztalékalap adóit ezek a kedvezmények nem csökkentik.
+
+## Költségek és értékcsökkenés
+
+Költség csak az a kiadás, amely (1) ténylegesen felmerült és szabályszerűen
+bizonylatolt, (2) a bevételszerzés érdekében merült fel, és (3) az Szja tv. is
+elismeri. Ha az eladó számlaadásra kötelezett, **nyugta nem elég** — számla kell.
+
+Néhány határ, amit érdemes fejben tartani:
+
+| Tétel | Szabály |
+| --- | --- |
+| Kis értékű eszköz | 200 000 Ft egyedi érték alatt egy összegben elszámolható |
+| Kezdő vállalkozó | a tevékenység megkezdése előtti **3 évben** felmerült kiadások is |
+| Személygépkocsi mint kizárólag üzemi eszköz | csak bérbeadónál / személyszállítónál |
+| Vegyes használatú eszköz átalány-écs | az éves bevétel 1%-áig, az eszközérték 50%-áig, egyszer |
+| Vegyes használatú személygépkocsi | éves bevétel 1%-a, de max. egy autó árának 10%-a |
+
+**Elhatárolt veszteség:** a következő **5 adóév** jövedelmével szemben számolható
+el, adóévenként legfeljebb a **vállalkozói adóalap 50%-áig**. A régebbi
+veszteséget kell először felhasználni. Mezőgazdasági tevékenységnél 2 évre
+visszamenőleg is rendezhető, évi 30%-ig.
+
+## A jövedelemminimum
+
+Ez a szabály fogja meg a tartósan „nullszaldós" vállalkozásokat.
+
+```text
+jövedelem-(nyereség-)minimum = a vállalkozói bevétel 2%-a
+```
+
+A NAV a **hasonlítási alapot** (bevétel + növelő tételek − költségek, a csökkentő
+tételek és a veszteség nélkül) veti össze ezzel. Ha a hasonlítási alap kisebb, a
+**jövedelemminimum után** kell adózni — kivéve, ha élsz a bevallást kiegészítő
+nyilatkozattal (ami viszont NAV-figyelmet vonz).
+
+Nem kell alkalmazni:
+
+- a tevékenység megkezdésének évében **és az azt követő adóévben**, ha a
+  megkezdést megelőző 36 hónapban nem volt vállalkozói tevékenységed,
+- ha a tevékenységi kört érintően **elemi kár** történt az adóévben vagy az azt
+  megelőzőben.
+
+## Kedvezmények, amelyek csak itt élnek
+
+Az átalányadózó ezekhez nem fér hozzá — a tételes elszámolás ára és jutalma
+egyszerre:
+
+| Kedvezmény | Lényeg |
+| --- | --- |
+| **Kisvállalkozói kedvezmény** | beruházáshoz kapcsolódó bevételcsökkentés, 250 fő alatt. Az osztalékalapnál vissza kell adni. 4 éven belüli feltételszegésnél a levont összeg **kétszerese** után kell adózni |
+| **Kisvállalkozások adókedvezménye** | tárgyieszköz-hitel kamata után, a vállalkozói szja **70%-áig** |
+| **Fejlesztési tartalék** | adóévenként legfeljebb **500 millió Ft**; felhasználáskor elszámolt écs-nek minősül |
+| **K+F kedvezmény** | saját K+F költsége; felsőoktatási/kutatóintézeti közös kutatásnál **háromszorosa, max. 50 M Ft** |
+| **Létszámnövekmény** | 5 főnél kevesebb alkalmazottnál, adótartozás-mentesség mellett |
+
+## Nyilvántartás és határidők
+
+Alapnyilvántartásként **pénztárkönyv vagy naplófőkönyv** kell — a puszta bevételi
+nyilvántartás az átalányadózóé. Mellé a jövedelemszámítást alátámasztó részletező
+nyilvántartások: tárgyi eszközök, útnyilvántartás, vevők/szállítók, bérek és a
+**vállalkozói kivét** nyilvántartása.
+
+| Kötelezettség | Határidő |
+| --- | --- |
+| Szja-előleg (vállalkozói tevékenységgel összefüggő) | negyedévet követő hó 12. |
+| Járulék + szocho (**2658**) | negyedévet követő hó 12. — **2026-tól negyedéves**, korábban havi |
+| Vállalkozói osztalékalap adója | csak az éves bevallással |
+| Éves szja-bevallás | a következő év **május 20.** |
+
+Egy kivétel a negyedéves rendből: ha **év közben családi járulékkedvezményt**
+akarsz igénybe venni, a kivét adóelőlegét **havonta** kell megállapítanod és
+bevallanod.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Miért veszítheti el a családi kedvezményét egy VSZJA-s vállalkozó?',
+      options: [
+        'Mert a családi kedvezmény csak munkaviszonyban érvényesíthető',
+        'Mert a kedvezmények alapja kizárólag a vállalkozói kivét — alacsony kivét mellett nincs mihez kapcsolni',
+        'Mert a 9%-os vállalkozói szja nem csökkenthető kedvezménnyel, de az osztalékalap igen',
+        'Mert a VSZJA-sok eleve nem jogosultak adóalap-kedvezményre',
+      ],
+      answer: 1,
+      explain: 'A kedvezmények az összevont adóalapot csökkentik, abba pedig a vállalkozói kivét tartozik. A 9%-os vállalkozói szja-t és az osztalékalap 15 + 13%-át nem érintik.',
+    },
+    {
+      q: 'Mennyi a jövedelem-(nyereség-)minimum?',
+      options: [
+        'A vállalkozói bevétel 2%-a',
+        'A vállalkozói adóalap 9%-a',
+        'Az éves minimálbér összege',
+        'A bevétel 45%-a',
+      ],
+      answer: 0,
+      explain: 'Ha a hasonlítási alap ennél kisebb, a jövedelemminimum után kell adózni — hacsak nem élsz a bevallást kiegészítő nyilatkozattal.',
+    },
+    {
+      q: 'Mekkora elhatárolt veszteség érvényesíthető egy adóévben?',
+      options: [
+        'A teljes elhatárolt veszteség, korlátozás nélkül',
+        'Legfeljebb a veszteség nélkül számított vállalkozói adóalap 50%-a, 5 éven belül',
+        'Évente legfeljebb 20%, 5 éven át',
+        'Csak a következő adóévben, teljes egészében',
+      ],
+      answer: 1,
+      explain: '5 éves elhatárolás, de évente legfeljebb az adóalap fele. A régebbi veszteséget kell először felhasználni.',
+    },
+    {
+      q: 'Mikor kell megfizetni a vállalkozói osztalékalap utáni adót?',
+      options: [
+        'Negyedévente, a negyedévet követő hó 12-ig',
+        'Havonta, a tárgyhót követő 12-ig',
+        'Az éves szja-bevallás benyújtásakor',
+        'A pénz kivételekor, azonnal',
+      ],
+      answer: 2,
+      explain: 'Negyedéves előleget csak a vállalkozói tevékenységgel összefüggő szja-ra (és a kivétre) kell fizetni; az osztalékalap adója az éves bevallással esedékes.',
+    },
+  ]}
+/>

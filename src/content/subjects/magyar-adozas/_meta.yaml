@@ -1,0 +1,6 @@
+# Subject-level metadata. One per subject folder.
+title: Magyar adózás
+summary: Hogyan áll össze egy magyar adószám mögött a teher — szja, járulék, áfa, iparűzési adó — és mit jelent mindez 2026-ban egy egyéni vállalkozónak.
+order: 3
+# Any Lucide icon name: https://lucide.dev/icons
+icon: landmark

@@ -1,0 +1,188 @@
+---
+title: ÁFA és alanyi adómentesség
+order: 7
+summary: 20 millió forint 2026-tól, és a számla, amivel átléped, teljes egészében adóköteles. Plusz a Google Ads-csapda, ami alanyi mentesként is áfabevallást hoz.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Az áfa nem a te pénzed — de a mulasztás a te bírságod. Egyéni vállalkozónál a
+kérdés jellemzően egyetlen dologra szűkül: **alanyi adómentes vagy-e**, és mi
+történik, ha kiesel onnan.
+
+## Az értékhatár 2026-ban: 20 millió forint
+
+| Adóév | Értékhatár |
+| --- | --- |
+| 2024 | 12 000 000 Ft |
+| 2025 | 18 000 000 Ft |
+| **2026** | **20 000 000 Ft** |
+| 2027 (tervezett) | 22 000 000 Ft |
+| 2028 (tervezett) | 24 000 000 Ft |
+
+**Bejelentés: az adóévet megelőző év december 31-ig**, ONYA-n vagy a T101E lap
+F lapján — e-papíron nem. Aki már alanyi mentes, annak nincs teendője, automatikusan
+folytatódik.
+
+Az emelés egy fontos mellékhatással jár: **feloldja a 2 éves visszatérési
+tilalmat** azoknak, akik a régi, alacsonyabb határ miatt estek ki. Aki 2024-ben a
+12 milliót vagy 2025-ben a 18 milliót lépte át, 2026-ra újra választhatja a
+mentességet — ha 2025-ben a 20 millió alatt maradt.
+
+## Az átlépés napja
+
+<Diagram
+  caption="Nem a határ feletti rész adóköteles — az egész számla."
+  chart={`flowchart TD
+    A["Éves bevétel: 19,7 M Ft<br/>alanyi mentes"] --> B["Új számla: 800 000 Ft"]
+    B --> C{"19,7 + 0,8 = 20,5 M<br/>átlépi a 20 milliót?"}
+    C -->|igen| D["Az EGÉSZ 800 000 Ft-os<br/>számla adóköteles<br/>+ 27% áfa = 1 016 000 Ft"]
+    D --> E["Az alanyi mentesség<br/>a túllépés napjával megszűnik"]
+    E --> F["Áttérés az általános szabályokra<br/>+ 2 éves visszatérési tilalom<br/>+ megnyílik a levonási jog"]
+    style D fill:#fee2e2,stroke:#ef4444`}
+/>
+
+Ez a szabály a legdrágább félreértés a témában. **Nem a 20 millió feletti rész
+adóköteles, hanem a teljes ügylet, amellyel átléped a határt.** Ha 19,7 milliónál
+tartasz, a következő számla kiállítása előtt számolni kell — adott esetben érdemes
+két ügyletre bontani, vagy áthúzni a következő évre.
+
+Ha tévesen mentesként számláztál a túllépés után, a számlákat módosítani kell, a
+bevallásokat önellenőrzéssel javítani.
+
+**Év közben induló vállalkozónál** az értékhatárt **naparányosan** kell figyelni.
+
+## Amire az alanyi mentesség nem terjed ki
+
+Ez a másik nagy csapda. Alanyi mentesként is keletkezik áfafizetési
+kötelezettséged — és ilyenkor **bevallást is kell adnod**:
+
+| Ügylet | Következmény |
+| --- | --- |
+| **Közösségi szolgáltatás igénybevétele** (Google Ads, Meta, AWS, Figma, Slack) | fordított adózás: neked kell 27% áfát bevallani és megfizetni, **levonni nem tudod** → valós 27% költség |
+| Harmadik országból igénybe vett szolgáltatás | ugyanez |
+| Közösségi termékbeszerzés 10 000 EUR felett | önadózással kell megfizetni a magyar áfát |
+| Termékimport | áfafizetés |
+| Belföldi fordított adózás vevőként (építőipar, hulladék, munkaerő-kölcsönzés) | áfafizetés |
+
+Mindegyikhez **előzetesen közösségi adószámot kell kérni**. A gyakorlati recept
+annak, aki alanyi mentes, de külföldi SaaS-t vagy hirdetést használ:
+
+1. kérj közösségi adószámot **előre**, ne az első számla után;
+2. minden olyan hónapról, amikor ilyen számlát kapsz, adj be **áfabevallást** a
+   tárgyhót követő **20-ig**, és fizesd be a 27%-ot;
+3. ha érintett, add be az **A60 összesítő nyilatkozatot** is.
+
+## Uniós alanyi adómentesség (SME)
+
+2025 óta létező lehetőség: **más tagállamban is alkalmazhatsz alanyi
+adómentességet** anélkül, hogy ott áfaregisztrációt kellene létesítened.
+
+- Feltétel: az **uniós szinten összesített éves árbevétel ≤ 100 000 EUR**, és a
+  célország saját nemzeti küszöbének teljesítése is.
+- Előzetes bejelentés a NAV-hoz → egyedi, **„EX" utótagú azonosítószám**,
+  legfeljebb 35 munkanapon belül.
+- **Negyedéves adatszolgáltatás** tagállamonkénti bontásban, a negyedévet követő
+  hónap utolsó napjáig.
+- A 100 000 EUR átlépését **15 munkanapon belül** jelenteni kell.
+
+A 100 000 EUR-os uniós küszöb és a 20 milliós magyar határ **két külön dolog** —
+egyik átlépése sem szünteti meg automatikusan a másikat.
+
+Kinek éri meg? Annak, aki **más tagállambeli magánszemélyeknek** értékesít. B2B
+ügyletnél a fordított adózás amúgy is megoldja a kérdést.
+
+## Kulcsok és tárgyi mentesség
+
+| Kulcs | Tipikus kör |
+| --- | --- |
+| **27%** | általános |
+| **18%** | egyes tej- és gabonaalapú élelmiszerek, szálláshelyhez kapcsolódó egyes szolgáltatások |
+| **5%** | gyógyszer, könyv, folyóirat, szálláshely-szolgáltatás, internet, hús, hal, tojás, tej, távhő |
+| **0%** (levonási joggal) | export, közösségi termékértékesítés |
+
+A **tárgyi adómentesség** más állat: ott a *tevékenység* jellege mentesít
+(egészségügy, oktatás, biztosítás, pénzügyi szolgáltatás, ingatlan-bérbeadás),
+nem az árbevétel nagysága, és nem választás kérdése. Levonási jog itt sincs. A
+tárgyi mentes bevétel **nem számít bele** a 20 milliós keretbe.
+
+## Bevallási gyakoriság
+
+A gyakoriságot a **tárgyévet két évvel megelőző év** adatai határozzák meg —
+2026-ra a 2024-esek.
+
+| Gyakoriság | Feltétel | Határidő |
+| --- | --- | --- |
+| **Havi** | az elszámolandó adó éves szinten pozitív és elérte az **1 000 000 Ft**-ot; **vagy jogelőd nélkül alakult adózó a bejelentkezés évében és az azt követő évben** | tárgyhót követő hó 20. |
+| **Negyedéves** | aki sem a havi, sem az éves körbe nem esik; **vagy éves lenne, de közösségi adószáma van** | negyedévet követő hó 20. |
+| **Éves** | az elszámolandó adó előjeltől függetlenül **250 000 Ft alatt**, **és** az adó nélküli árbevétel **50 M Ft alatt**, **és nincs közösségi adószáma** | következő év február 25. |
+
+Az **alanyi mentes adóalany formálisan havi bevalló**, de mentesül a bevallás
+alól, amíg nincs fizetendő adója és nincs közösségi ügylete. Ezért nem ad be
+bevallást a tisztán belföldön működő alanyi mentes vállalkozó — és ezért ad be
+hirtelen mégis, amint jön az első Google Ads-számla.
+
+## Online Számla, e-nyugta, eÁFA
+
+- **Online Számla adatszolgáltatás:** minden kiállított számláról, értékhatár
+  nélkül, **az alanyi mentesre is**. Számlázóprogramnál azonnal és automatikusan;
+  kézi számlánál **4 naptári napon belül**, 500 000 Ft feletti áthárított áfánál
+  már a kiállítást követő napon.
+- **e-nyugta: 2026. szeptember 1-től kötelező** (8/2025. NGM rendelet), kb.
+  270 000 nyugtaadásra kötelezett vállalkozásnak — fodrász, kozmetikus,
+  autószerelő, taxis, szálláshely-szolgáltató, magánorvos. **Akit nem érint:**
+  aki kizárólag számlát állít ki, vagyis a tipikus B2B szolgáltató. Az online
+  pénztárgépesek 2028-ig fokozatosan térhetnek át.
+- **eÁFA (webes és M2M): 2026-ban is önkéntes.** Kötelezővé tételi dátumot
+  jogszabály nem rögzít — aki mást állít, azt ellenőrizd.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Egy alanyi mentes vállalkozó 19,6 millió forintnál tart, és kiállít egy 900 000 Ft-os számlát. Mennyi lesz adóköteles?',
+      options: [
+        '500 000 Ft — csak a 20 millió feletti rész',
+        'A teljes 900 000 Ft, mert az az ügylet lépi át a határt',
+        'Semmi, mert az átlépés csak a következő számlától számít',
+        'A 900 000 Ft 27%-a, de csak a következő évtől',
+      ],
+      answer: 1,
+      explain: 'Az értékhatárt átlépő ügylet teljes egészében adókötelessé válik, és a mentesség a túllépés napjával megszűnik. Ezért kell a határ közelében előre számolni.',
+    },
+    {
+      q: 'Alanyi mentes egyéni vállalkozó Google Ads-t vesz igénybe. Mi a teendő?',
+      options: [
+        'Semmi, az alanyi mentesség erre is kiterjed',
+        'Előzetesen közösségi adószámot kell kérni, majd az adott hónapról áfabevallást adni és a 27%-ot befizetni',
+        'A 27%-ot befizetni, de utólag levonható',
+        'Csak év végén, az éves bevallásban kell szerepeltetni',
+      ],
+      answer: 1,
+      explain: 'Fordított adózás: a szolgáltatás igénybevevője az adófizetésre kötelezett. Alanyi mentesként a levonási jog nem nyílik meg, tehát a 27% valódi költség.',
+    },
+    {
+      q: 'Mikor kötelező az e-nyugta?',
+      options: [
+        '2025. július 1-től mindenkinek',
+        '2026. január 1-től minden egyéni vállalkozónak',
+        '2026. szeptember 1-től, de csak a nyugtaadásra kötelezetteknek',
+        'Még nincs kötelező határidő',
+      ],
+      answer: 2,
+      explain: 'A 8/2025. NGM rendelet szerint 2026. szeptember 1. a kötelező határidő, és csak azokat érinti, akik nyugtát adnak. Aki kizárólag számlát állít ki, nem érintett.',
+    },
+    {
+      q: 'Mi különbözteti meg az alanyi és a tárgyi adómentességet?',
+      options: [
+        'Az alanyi értékhatárhoz kötött és választható, a tárgyi a tevékenység jellegéből fakad',
+        'A tárgyi mentességnél van levonási jog, az alanyinál nincs',
+        'A tárgyi mentesség csak 2026-tól létezik',
+        'Semmi, a két fogalom ugyanaz',
+      ],
+      answer: 0,
+      explain: 'Az alanyi mentesség az adóalany státusza (20 M Ft-os határ, választható), a tárgyi a tevékenységé (egészségügy, oktatás, pénzügy). Levonási jog egyiknél sincs, és a tárgyi mentes bevétel nem számít bele a 20 milliós keretbe.',
+    },
+  ]}
+/>

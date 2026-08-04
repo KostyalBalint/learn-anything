@@ -1,0 +1,154 @@
+---
+title: Szja-kedvezmények
+order: 9
+summary: Hét kedvezmény, kötött sorrendben. A 2026-os családi összegek, a kétgyermekes anyák belépő korosztálya, és az, hogy egyéni vállalkozónál mi számít kedvezményalapnak.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Az adóalap-kedvezmények **nem az adót, hanem az adóalapot** csökkentik, és
+**kötött sorrendben** épülnek egymásra. A sorrend nem esztétika: aki előbb
+fogyasztja el az adóalapot, elviszi a mögötte állók elől.
+
+<Diagram
+  caption="Az érvényesítés sorrendje 2026-ban. A 30 év alatti anyák kedvezménye 2026-tól került az első helyre."
+  chart={`flowchart TD
+    J["Összevont adóalapba tartozó jövedelem"] --> K1["1. 30 év alatti anyák kedvezménye"]
+    K1 --> K2["2. Négy+ / három / két gyermeket<br/>nevelő anyák kedvezménye"]
+    K2 --> K3["3. CSED, GYED, örökbefogadói díj"]
+    K3 --> K4["4. 25 év alatti fiatalok kedvezménye"]
+    K4 --> K5["5. Személyi kedvezmény"]
+    K5 --> K6["6. Első házasok kedvezménye"]
+    K6 --> K7["7. Családi kedvezmény"]
+    K7 --> A["Adóalap × 15%"]`}
+/>
+
+## Mi számít kedvezményalapnak egyéni vállalkozónál
+
+Ez a legfontosabb mondat az egész oldalon:
+
+| Adózási forma | Kedvezményalap |
+| --- | --- |
+| **VSZJA** | **kizárólag a vállalkozói kivét** |
+| **Átalányadózás** | az **átalányban megállapított jövedelem** (az adómentes rész feletti része) |
+| **KATA** | **nincs** — a tételes adó kiváltja a saját szja-t, nincs mit csökkenteni |
+
+A VSZJA-s vállalkozónál ez a szabály komoly tervezési kényszer: a 9%-os
+vállalkozói szja-t és az osztalékalap 15 + 13%-át egyik kedvezmény sem csökkenti.
+Ha alacsony a kivét, a kedvezmény nagy része elvész.
+
+Vegyes bevételnél a kedvezményalapot **bevételarányosan** kell megosztani.
+
+## Családi kedvezmény 2026
+
+A 2025 júliusában indult emelés második lépcsője 2026. január 1-jén lépett
+hatályba — a kedvezmény a 2025 eleji szint kétszerese.
+
+**Adóalap-kedvezmény kedvezményezett eltartottanként, havonta:**
+
+| Eltartottak száma | Adóalap-kedvezmény / gyermek / hó | Adómegtakarítás / gyermek / hó |
+| --- | --- | --- |
+| 1 | **133 340 Ft** | 20 001 Ft |
+| 2 | **266 660 Ft** | 39 999 Ft |
+| 3 vagy több | **440 000 Ft** | 66 000 Ft |
+
+A sajtóban keringő „20 / 40 / 66 ezer" az **adómegtakarítás**, nem az
+adóalap-kedvezmény — a kettő között 6,67-szeres a szorzó (1 / 0,15).
+
+Kiegészítések:
+
+- **Tartósan beteg vagy súlyosan fogyatékos** kedvezményezett eltartott után a
+  kedvezmény **+133 340 Ft**-tal emelt.
+- **Felváltva gondozott** gyermeknél a szülők **50-50%**-ban jogosultak.
+- Ha a családi kedvezmény meghaladja az összevont adóalapot, a meghaladó rész
+  **15%-a családi járulékkedvezményként** érvényesíthető — a 18,5% tb-járulék
+  erejéig. Ezt a **2658**-as negyedéves járulékbevallásban kell bevallani.
+
+## Anyák szja-mentessége
+
+| Kedvezmény | Kire | Korlát |
+| --- | --- | --- |
+| **Négy vagy több gyermek (NÉTAK)** | változatlanul él | nincs összeghatár |
+| **Három gyermek** | 2025. október 1-től | nincs életkori korlát, nincs összeghatár |
+| **Két gyermek** | **2026. január 1-től indul** | nincs összeghatár, de **korosztályos ütemezés** |
+| **30 év alatti anyák** | bővült 2026-tól | **2026-tól nincs összegkorlát** |
+
+**A kétgyermekes anyák belépő köre 2026-ban:** azok, akik **2025. december 31-e
+után töltik be a 40. életévüket**, vagyis **1986-ban vagy később születtek**. A
+NAV kommunikációja szerint az ütemezés folytatódik: 2027-től 50 év alattiak,
+2028-tól 60 év alattiak, 2029-től valamennyi kétgyermekes anya.
+
+**A 30 év alatti anyák kedvezménye** 2026-tól három ponton bővült: megszűnt az
+összegkorlát, jogosulttá váltak azok is, akiknek a családi kedvezményre való
+jogosultsága 2023 előtt keletkezett, és nem feltétel, hogy a jogosultság a 30.
+életév betöltése előtt nyíljon meg. Utoljára abban az évben érvényesíthető,
+amelyben az anya betölti a 30. életévét — de akkor a **teljes évre**.
+
+Mindhárom anyai kedvezmény alapja egyéni vállalkozónál ugyanaz: **a vállalkozói
+kivét, illetve az átalányban megállapított jövedelem**.
+
+## A többi
+
+| Kedvezmény | 2026-os összeg | Megjegyzés |
+| --- | --- | --- |
+| **25 év alatti fiatalok** | havi **715 765 Ft** adóalap (107 365 Ft adó), évi 8 589 180 Ft | a jogosultság utolsó hónapja a 25. születésnap hónapja; a fel nem használt keret nem vihető át |
+| **Személyi kedvezmény** | havi **107 600 Ft** adóalap (16 140 Ft adó) | a minimálbér harmada; súlyosan fogyatékos állapot, rokkantsági járadék vagy fogyatékossági támogatás alapján |
+| **Első házasok** | havi **33 335 Ft** adóalap (5 000 Ft adó) | a házasságkötést követő 24 hónap; 2015 óta változatlan összeg |
+
+A 715 765 Ft a KSH tavaly júliusi bruttó átlagkeresete — **ez a 25 év alattiak
+kerete, ne keverd a 30 év alatti anyákéval**, amelynek 2026-tól nincs korlátja.
+
+## Két speciális 2026-os szabály nyugdíjas vállalkozóknál
+
+- Az **anyák kedvezményét érvényesítő**, saját jogú nyugdíjas egyéni vállalkozónak
+  **szochót kell fizetnie** a kedvezményalapot képező jövedelem **34 356 720 Ft**
+  feletti része után (az éves átlagkereset négyszerese) — az szja-bevallásában.
+- Ugyanennek a körnek **csak akkor kell bevallást benyújtania** a kedvezményalapba
+  tartozó jövedelméről, ha az nem kifizetőtől származik **és** a bevétel meghaladja
+  ugyanezt a 34 356 720 Ft-ot.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Két gyermek után mennyi a családi kedvezmény adóalap-csökkentő összege havonta, összesen?',
+      options: [
+        '39 999 Ft',
+        '266 660 Ft',
+        '533 320 Ft',
+        '79 998 Ft',
+      ],
+      answer: 2,
+      explain: 'Gyermekenként 266 660 Ft, két kedvezményezett eltartottnál 2 × 266 660 = 533 320 Ft adóalap — ez 79 998 Ft adómegtakarítás. A 39 999 Ft az egy gyermekre jutó adómegtakarítás.',
+    },
+    {
+      q: 'Ki érvényesítheti 2026-ban a két gyermeket nevelő anyák kedvezményét?',
+      options: [
+        'Minden kétgyermekes anya, korlátozás nélkül',
+        'Aki 1986-ban vagy azt követően született (2025. december 31. után tölti be a 40. életévét)',
+        'Csak a 30 év alattiak',
+        'Csak akiknek a gyermeke 2026 után született',
+      ],
+      answer: 1,
+      explain: 'A bevezetés fokozatos: 2026-ban a 40 év alattiak, majd 2027-től 50, 2028-tól 60 év alattiak, 2029-től mindenki.',
+    },
+    {
+      q: 'Egy VSZJA-s vállalkozó 300 000 Ft kivétet vesz fel évente, a nyereség többi részét osztalékalapként veszi ki. Mi lesz a nagy családi kedvezményével?',
+      options: [
+        'Teljes egészében érvényesíti, mert a vállalkozói adóalapra is vonatkozik',
+        'Nagyrészt elvész: a kedvezmény alapja kizárólag a vállalkozói kivét',
+        'Az osztalékalap 15%-os adójából vonható le',
+        'Automatikusan átvihető a következő évre',
+      ],
+      answer: 1,
+      explain: 'A kedvezmények az összevont adóalapot csökkentik, oda pedig csak a kivét tartozik. Ezért érdemes nagy családi kedvezménynél magasabb kivétet meghatározni.',
+    },
+    {
+      q: 'Mennyi a személyi kedvezmény havi adóalap-csökkentő összege 2026-ban?',
+      options: ['96 900 Ft', '107 600 Ft', '133 340 Ft', '715 765 Ft'],
+      answer: 1,
+      explain: 'A minimálbér harmada, 100 forintra kerekítve: 322 800 / 3 = 107 600 Ft, ami havi 16 140 Ft adómegtakarítás. A 96 900 Ft a 2025-ös érték.',
+    },
+  ]}
+/>

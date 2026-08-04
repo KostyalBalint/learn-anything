@@ -1,0 +1,122 @@
+---
+title: Az adórendszer térképe
+order: 1
+summary: Négy teher, három beszedő, egy naptár — hogyan kapcsolódnak egymáshoz a magyar adónemek, és melyik mikor kapcsol be.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Quiz from '../../../components/Quiz';
+
+A magyar adórendszer kívülről száz nyomtatvány. Belülről **négy teher**, amelyek
+külön alapból, külön kulccsal, külön határidőre számolódnak. Aki ezt a négyet
+szét tudja választani, annak a többi már csak adminisztráció.
+
+<Diagram
+  caption="A négy teher és az alapjuk. Ugyanaz a forint más-más alapba számít bele mindegyiknél."
+  chart={`flowchart TD
+    B["Bevétel<br/>(amit kiszámláztál)"] --> AFA["ÁFA<br/>a vevő fizeti, te továbbítod<br/>27% / 18% / 5% / mentes"]
+    B --> J["Jövedelem<br/>= bevétel − költség"]
+    B --> HIPA["Helyi iparűzési adó<br/>max 2%<br/>önkormányzat"]
+    J --> SZJA["Személyi jövedelemadó<br/>15% (vagy 9% vállalkozói)"]
+    J --> TB["TB-járulék 18,5%<br/>ellátásra jogosít"]
+    J --> SZOCHO["Szocho 13%<br/>közteher, nem ellátás"]
+    style AFA fill:#eef2ff,stroke:#6366f1
+    style HIPA fill:#f0fdf4,stroke:#22c55e
+    style SZJA fill:#fef3c7,stroke:#f59e0b
+    style TB fill:#fee2e2,stroke:#ef4444
+    style SZOCHO fill:#fee2e2,stroke:#ef4444`}
+/>
+
+## A négy teher, egy mondatban
+
+| Teher | Kulcs 2026 | Miből | Kinek |
+| --- | --- | --- | --- |
+| **ÁFA** | 27% / 18% / 5% | a *bevételre rárakva* | NAV |
+| **Szja** | 15%, vállalkozói szja 9% | a *jövedelemből* | NAV |
+| **TB-járulék** | 18,5% | a *jövedelemből* | NAV → ellátórendszer |
+| **Szocho** | 13% | a *jövedelemből* | NAV |
+| **HIPA** | max 2% | a *bevételből*, korrigálva | önkormányzat |
+
+Két dolog, amit érdemes már itt rögzíteni:
+
+1. **Az áfa nem a te pénzed.** Beszeded a vevőtől, továbbadod a NAV-nak. A
+   vállalkozás eredményében nem jelenik meg — csak a pénzforgalmában.
+2. **A TB-járulék és a szocho nem ugyanaz.** A 18,5% *téged* jogosít
+   ellátásra (nyugdíj, táppénz, egészségügy). A 13% szocho tiszta közteher,
+   semmilyen szolgáltatásra nem jogosít. Ugyanabból az alapból mennek, de más a
+   logikájuk — és 2026-tól végre ugyanaz a minimumalapjuk is.
+
+## Ki fizet mit
+
+<Diagram
+  caption="Ugyanaz a tevékenység, három jogi forma — más-más adónemekkel."
+  chart={`flowchart LR
+    A["Magánszemély<br/>munkaviszonyban"] --> A1["szja 15% + TB 18,5%<br/>a munkáltató vonja le<br/>+ szocho 13% a munkáltatót terheli"]
+    B["Egyéni vállalkozó"] --> B1["saját maga állapítja meg<br/>szja / átalányadó / KATA<br/>+ TB + szocho + HIPA + áfa"]
+    C["Kft."] --> C1["társasági adó 9%<br/>+ osztalékadó a tulajdonosnál<br/>+ bér utáni közterhek"]`}
+/>
+
+Az **egyéni vállalkozó** helyzete az érdekes: nála nincs munkáltató, aki levonja
+a közterheket. Ő maga a bevalló, a számoló és a fizető is. Ezért fordul minden
+kérdés oda, hogy **melyik adózási formát választja** — mert a forma dönti el,
+hogyan lesz a bevételből jövedelem, és mikor kapcsol be a minimumteher.
+
+## Az egyéni vállalkozó három útja 2026-ban
+
+<Diagram
+  caption="A választás nem az adókulcsról szól — arról, hogyan számolod ki a jövedelmet."
+  chart={`flowchart TD
+    EV["Egyéni vállalkozó"] --> Q1{"Éves bevétel<br/>18 M Ft alatt<br/>ÉS csak magánszemélynek<br/>számlázol?"}
+    Q1 -->|igen| KATA["KATA<br/>50 000 Ft / hó tételes<br/>nincs jövedelemszámítás"]
+    Q1 -->|nem| Q2{"Bevétel<br/>38,7 M Ft alatt?"}
+    Q2 -->|igen| ATALANY["Átalányadózás<br/>költséghányad 45 / 80 / 90%<br/>nincs számlagyűjtés"]
+    Q2 -->|nem| VSZJA["Vállalkozói jövedelem<br/>szerinti adózás<br/>tételes költségelszámolás"]
+    ATALANY -.->|"sok a valódi költség"| VSZJA
+    style KATA fill:#f0fdf4,stroke:#22c55e
+    style ATALANY fill:#eef2ff,stroke:#6366f1
+    style VSZJA fill:#fef3c7,stroke:#f59e0b`}
+/>
+
+Mindhárom mellé ugyanaz a kísérőcsomag jár: **járulékok**, **áfa** (vagy alanyi
+mentesség), **iparűzési adó**, és egy éves **határidőnaptár**. Ez a subject
+sorra veszi mindet — a következő oldal viszont egy számmal kezd, mert 2026-ban
+majdnem minden határ ebből az egy számból származik.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Miért nem jelenik meg az áfa a vállalkozás eredményében?',
+      options: [
+        'Mert 2026-tól levonható a jövedelemből',
+        'Mert a vevő fizeti, a vállalkozó csak beszedi és továbbadja a NAV-nak',
+        'Mert az önkormányzathoz megy, nem a NAV-hoz',
+        'Mert csak a 27%-os kulcs számít bele, a többi nem',
+      ],
+      answer: 1,
+      explain: 'Az áfa átfolyó tétel: a bevételre rárakódik, majd a fizetendő és a levonható áfa különbözetét a vállalkozó befizeti. Az eredményt nem érinti, a pénzforgalmat annál inkább.',
+    },
+    {
+      q: 'Mi a lényegi különbség a 18,5% TB-járulék és a 13% szocho között?',
+      options: [
+        'Semmi, csak két különböző néven ugyanaz',
+        'A TB-járulékot az önkormányzat, a szochót a NAV szedi be',
+        'A TB-járulék ellátásra jogosít (nyugdíj, táppénz), a szocho nem jogosít semmire',
+        'A szochót csak a 38,7 millió forint feletti bevételre kell fizetni',
+      ],
+      answer: 2,
+      explain: 'Mindkettő ugyanabból az alapból megy és mindkettőt a NAV szedi be, de a TB-járulék szolgálati időt és ellátási jogosultságot ad, a szocho tiszta közteher.',
+    },
+    {
+      q: 'Mi dönti el elsősorban, hogy egy egyéni vállalkozó melyik adózási formát válassza?',
+      options: [
+        'Az adókulcs nagysága',
+        'Az, hogy mekkora a bevétele és mennyi a valódi, számlával igazolt költsége',
+        'Az, hogy melyik önkormányzat területén működik',
+        'Az, hogy áfaalany-e vagy sem',
+      ],
+      answer: 1,
+      explain: 'A formák nem az adókulcsban, hanem a jövedelemszámítás módjában térnek el. A bevétel nagysága szabja meg, mi választható, a valódi költséghányad pedig azt, mi éri meg.',
+    },
+  ]}
+/>

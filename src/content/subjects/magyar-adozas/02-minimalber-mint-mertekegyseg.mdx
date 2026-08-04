@@ -1,0 +1,132 @@
+---
+title: A minimálbér mint mértékegység
+order: 2
+summary: 322 800 forint — és belőle levezetve az átalányadó határa, az adómentes rész, a minimumjárulék és a szocho-plafon. Egy szám, tizenöt következmény.
+---
+
+import Chart from '../../../components/Chart';
+import Quiz from '../../../components/Quiz';
+
+A magyar adójog nem forintösszegeket ír a törvénybe, hanem **a minimálbér
+többszöröseit**. Ezért van az, hogy amikor decemberben megjelenik egy
+kormányrendelet egyetlen számmal, januárban tizenöt adóhatár mozdul el vele.
+
+2026-ra ez a szám a **426/2025. (XII. 23.) Korm. rendeletben** áll:
+
+| | 2025 | 2026 | Változás |
+| --- | --- | --- | --- |
+| **Minimálbér** (havi) | 290 800 Ft | **322 800 Ft** | +11,0% |
+| **Garantált bérminimum** (havi) | 348 800 Ft | **373 200 Ft** | +7,0% |
+
+A garantált bérminimum a **legalább középfokú végzettséget vagy szakképzettséget
+igénylő** munkakörökre vonatkozik. Egyéni vállalkozónál nem a végzettséged
+számít, hanem az, hogy a **személyesen végzett főtevékenységed** igényel-e
+középfokú képzettséget — ha igen, a magasabb szám lesz a járulékalapod.
+
+## Amit ez a szám mozgat
+
+Az alábbi értékek mind a 322 800 Ft-ból származnak. Egyiket sem kell
+megjegyezni — a *szorzót* kell tudni, a szám abból bármikor előáll.
+
+| Határ | Képlet | 2026-os érték |
+| --- | --- | --- |
+| Éves minimálbér | 12 × havi | 3 873 600 Ft |
+| **Átalányadó bevételi határa** | 10 × éves | **38 736 000 Ft** |
+| Átalányadó határa kiskereskedőnél | 50 × éves | 193 680 000 Ft |
+| **Az átalányjövedelem adómentes része** | éves ÷ 2 | **1 936 800 Ft** |
+| **Minimum TB-alap** (főfoglalkozású) | 100% havi | **322 800 Ft** |
+| **Minimum szocho-alap** (főfoglalkozású) | 100% havi | **322 800 Ft** |
+| Töredékhónap napi alapja | havi ÷ 30 | 10 760 Ft |
+| Szocho felső határ (plafon) | 24 × havi | 7 747 200 Ft |
+| Személyi kedvezmény havi összege | havi ÷ 3 | 107 600 Ft |
+| Biztosítási küszöb megbízásnál | 30% × havi | 96 840 Ft |
+| Rehabilitációs szocho-kedvezmény max. | 13% × 2 × havi | 83 928 Ft/hó |
+
+## A 2026-os csavar: eltűnt a 112,5%
+
+Évekig külön alapja volt a két járuléknak: a TB-járulék a minimálbér 100%-ára
+ment, a szocho viszont a **112,5%-ára**. Ez 2026. január 1-jétől megszűnt — a
+NAV megfogalmazásában: *„2026. január 1-jétől nem kell alkalmazni a 112,5
+százalékos szorzót."* A két alap innentől azonos.
+
+Az eredmény szokatlan: a minimálbér 11%-kal nőtt, a főfoglalkozású egyéni
+vállalkozó **szocho-terhe mégis csökkent**.
+
+export const kozteher = [
+  { alap: '2025 min.bér', 'TB-járulék': 53798, Szocho: 42530 },
+  { alap: '2026 min.bér', 'TB-járulék': 59718, Szocho: 41964 },
+  { alap: '2025 gar.bm.', 'TB-járulék': 64528, Szocho: 51012 },
+  { alap: '2026 gar.bm.', 'TB-járulék': 69042, Szocho: 48516 },
+];
+
+<Chart
+  client:visible
+  type="bar"
+  data={kozteher}
+  xKey="alap"
+  xLabel="minimum járulékalap"
+  yLabel="Ft / hó"
+  series={[
+    { key: 'TB-járulék', label: 'TB-járulék 18,5%', stack: true },
+    { key: 'Szocho', label: 'Szocho 13%', stack: true },
+  ]}
+/>
+
+| | 2025 | 2026 | Változás |
+| --- | --- | --- | --- |
+| Havi minimum közteher (minimálbér-alapon) | 96 328 Ft | 101 682 Ft | +5,6% |
+| Havi minimum közteher (gar. bérminimumon) | 115 540 Ft | 117 558 Ft | +1,7% |
+
+Vagyis a garantált bérminimumhoz kötött — jellemzően szakképzettséget igénylő —
+vállalkozásoknál a minimumteher gyakorlatilag stagnált, pedig a bérminimum 7%-kal
+emelkedett. A szorzó eltörlése lenyelte az emelés nagy részét.
+
+## Miért fontos ez a szemlélet
+
+Ha jövőre megint jön egy minimálbér-emelés, nem kell újratanulni az adójogot.
+Egyetlen szám cserélődik, és a fenti táblázat összes sora vele mozdul. A
+szabályok — a szorzók — maradnak.
+
+Egy kivétel van, amit érdemes külön észben tartani: a **KATA 18 milliós** és az
+**alanyi áfamentesség 20 milliós** határa **nem** a minimálbérhez kötött. Azok
+fix forintösszegek a törvényben, és csak akkor mozdulnak, ha a jogalkotó
+kifejezetten hozzájuk nyúl — mint 2026-ban az áfahatárhoz.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Mennyi 2026-ban az átalányadózás általános bevételi határa, és miből jön?',
+      options: [
+        '18 000 000 Ft — fix összeg a törvényben',
+        '38 736 000 Ft — az éves minimálbér tízszerese',
+        '20 000 000 Ft — az alanyi áfamentesség határával azonos',
+        '3 873 600 Ft — az éves minimálbér',
+      ],
+      answer: 1,
+      explain: '322 800 × 12 × 10 = 38 736 000 Ft. A törvény a szorzót rögzíti, nem az összeget — ezért mozdul minden évben.',
+    },
+    {
+      q: 'Egy főfoglalkozású egyéni vállalkozó főtevékenysége középfokú szakképzettséget igényel. Mi a minimum járulékalapja 2026-ban?',
+      options: [
+        '322 800 Ft, mert a járulékalap mindig a minimálbér',
+        '373 200 Ft, a garantált bérminimum',
+        '363 150 Ft, a minimálbér 112,5%-a',
+        'Nincs minimuma, a tényleges jövedelme után fizet',
+      ],
+      answer: 1,
+      explain: 'Ha a személyesen végzett főtevékenység legalább középfokú végzettséget vagy szakképzettséget igényel, a garantált bérminimum a járulék- és a szocho-alap egyaránt. A 112,5%-os szorzó 2026-tól nem létezik.',
+    },
+    {
+      q: 'A minimálbér 11%-kal nőtt 2026-ban. Miért csökkent mégis a főfoglalkozású vállalkozó havi szochója?',
+      options: [
+        'Mert a szocho kulcsa 13%-ról 12%-ra csökkent',
+        'Mert megszűnt a 112,5%-os szorzó, így a szocho-alap 327 150 Ft-ról 322 800 Ft-ra esett',
+        'Mert a szochót 2026-tól csak negyedévente kell fizetni',
+        'Mert az adómentes rész 1 936 800 Ft-ra emelkedett',
+      ],
+      answer: 1,
+      explain: 'A kulcs maradt 13%. Az alap csökkent: a 2025-ös 290 800 × 1,125 = 327 150 Ft helyett 2026-ban a 322 800 Ft-os minimálbér a szocho alapja is.',
+    },
+  ]}
+/>

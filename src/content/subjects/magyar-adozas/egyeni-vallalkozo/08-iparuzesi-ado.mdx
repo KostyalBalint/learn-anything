@@ -1,0 +1,154 @@
+---
+title: Helyi iparűzési adó
+order: 8
+summary: >-
+  Az egyetlen adó, ami nem a NAV-hoz megy. Három sáv, egy jogvesztő határidő
+  május 31-én, és egy csendes ár — a sávos rendszerrel elveszíted az
+  önkormányzati mentességet.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A HIPA a **székhely és minden telephely szerinti önkormányzaté**. Mértéke
+legfeljebb **2%** — de az önkormányzat 0 és 2% között szabadon dönt, és ez
+településenként eltér.
+
+Az általános adóalap a nettó árbevétel, csökkentve az eladott áruk beszerzési
+értékével (ELÁBÉ), a közvetített szolgáltatások és az alvállalkozói teljesítések
+értékével, az anyagköltséggel és a K+F közvetlen költségével. Egy szolgáltató
+egyéni vállalkozónál ezek jellemzően közel nullák — vagyis **az adóalap majdnem a
+teljes árbevétel**.
+
+## A sávos adóalap-megállapítás
+
+Ez a kisvállalkozók útja: nem kell adóalapot számolni, sávot választasz.
+
+| Éves bevétel | Adóalap **önkormányzatonként** | Adó 2%-os kulcsnál |
+| --- | --- | --- |
+| ≤ **12 000 000 Ft** | 2 500 000 Ft | **50 000 Ft/év** |
+| 12–18 M Ft | 6 000 000 Ft | **120 000 Ft/év** |
+| 18–25 M Ft (átalányadózó kiskereskedőnél **120 M Ft**-ig) | 8 500 000 Ft | **170 000 Ft/év** |
+
+Ki választhatja: akinek az éves bevétele legfeljebb **25 millió Ft** — átalányadózó
+kiskereskedőnél **120 millió Ft**. 12 hónapnál rövidebb adóévnél napi
+arányosítással.
+
+**Az adóalap önkormányzatonként értendő.** Ha a székhelyed és a telephelyed két
+különböző településen van, mindkettőnél a teljes sávösszeg az adóalap — nem
+osztod meg. A ténylegesen fizetendő pedig a helyi kulcstól függ: Győrben például
+a három sáv 40 000 / 96 000 / 136 000 Ft (1,6%-os kulcs).
+
+### Miért jó
+
+<Diagram
+  caption="A sávos rendszer nem elsősorban olcsóbb — egyszerűbb."
+  chart={`flowchart LR
+    A["Általános szabály"] --> A1["adóalap-számítás<br/>ELÁBÉ, alvállalkozó, anyag"]
+    A --> A2["bevallás minden év<br/>május 31."]
+    A --> A3["előleg 2 részletben<br/>március 15. + szeptember 15."]
+    B["Sávos"] --> B1["nincs adóalap-számítás"]
+    B --> B2["nincs bevallás<br/>ha nem váltasz sávot"]
+    B --> B3["előleg egyszer<br/>május 31."]
+    style B1 fill:#f0fdf4,stroke:#22c55e
+    style B2 fill:#f0fdf4,stroke:#22c55e
+    style B3 fill:#f0fdf4,stroke:#22c55e`}
+/>
+
+A sávos rendszerben **nem kell HIPA-bevallást benyújtani**, ha ugyanabban a
+sávban maradsz. Bevallás csak akkor kell, ha sávot váltasz, visszatérítést
+igényelsz, lemondasz a rendszerről, vagy túlléped a 25 (illetve 120) milliós
+határt.
+
+### És mibe kerül
+
+> Aki a sávos adóalap-megállapítást választja, a helyi iparűzési adóban
+> **adómentességre, adókedvezményre és adócsökkentésre a továbbiakban nem
+> jogosult**.
+
+Ez a döntés valódi ára. Sok önkormányzat mentesíti a kis adóalapú vállalkozókat
+(Budapesten például az orvos és ápoló egyéni vállalkozók 2026-tól 40 millió Ft
+adóalapig mentesek), és ilyenkor a sávos rendszer választása **drágább**, mint a
+semmit nem tenni. **Előbb nézd meg a saját önkormányzatod rendeletét** — országos
+lista nincs, az E-Önkormányzat Portálon vagy az önkormányzat honlapján érdemes
+keresni.
+
+### A választás bejelentése
+
+| Helyzet | Hogyan | Határidő |
+| --- | --- | --- |
+| Már működő kisvállalkozó | az előző adóévről szóló HIPA-bevallási nyomtatványon | **május 31. — jogvesztő** |
+| Jogelőd nélkül kezdő | a bejelentkezési nyomtatványon, illetve az első adóévről szóló bevallásban | a bejelentkezés a tevékenység kezdetétől számítva; az első adóévi választás a következő év május 31-ig |
+
+A választás **önellenőrzéssel nem módosítható**. Bejelentés az **E-Önkormányzat
+Portálon** (`ohp-20.asp.lgov.hu`), Ügyfélkapu+ vagy DÁP azonosítással.
+
+## Két szabály, ami már nem létezik
+
+Sok cikk és fórumbejegyzés még ezekkel számol:
+
+- **Az átalányadózók „bevétel 80%-a" HIPA-opciója megszűnt** 2023. január 1-jével.
+- **A KATA-s tételes HIPA** (2,5 M Ft adóalap önkormányzatonként, a Htv. régi
+  39/B. §-a szerint) szintén **megszűnt** 2023-tól. A mai 39/B. § már a
+  KIVA-alanyokról szól.
+
+Mindkettőt az egységes sávos rendszer váltotta fel. A kataalany a gyakorlatban
+ma is 50 000 Ft-ot fizet 2%-os kulcsnál — csak más jogcímen, a legalsó sávban.
+
+## Határidők
+
+| Kötelezettség | Határidő |
+| --- | --- |
+| Éves HIPA-bevallás és a különbözet | a következő év **május 31.** |
+| I. félévi adóelőleg (általános szabály) | **március 15.** |
+| II. félévi adóelőleg (általános szabály) | **szeptember 15.** |
+| Sávos adózó adóelőlege, egy összegben | **május 31.** |
+| A sávos rendszer választása | **május 31.**, jogvesztő |
+
+A bevallás a NAV-on keresztül is benyújtható (továbbítja az önkormányzatnak), de
+**a pénz az önkormányzat számlájára megy**.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Egy 10 millió forint bevételű egyéni vállalkozó a sávos rendszert választja, 2%-os kulcsú településen. Mennyi az éves iparűzési adója?',
+      options: ['50 000 Ft', '120 000 Ft', '200 000 Ft', '170 000 Ft'],
+      answer: 0,
+      explain: '12 millió alatt a sávos adóalap 2 500 000 Ft, ennek 2%-a 50 000 Ft — székhelyenként és telephelyenként.',
+    },
+    {
+      q: 'Mi a sávos adóalap-megállapítás legfontosabb hátránya?',
+      options: [
+        'Magasabb az adókulcs',
+        'Elveszíted az önkormányzati mentességre és kedvezményre való jogosultságot',
+        'Minden hónapban bevallást kell adni',
+        'Csak átalányadózók választhatják',
+      ],
+      answer: 1,
+      explain: 'Ha az önkormányzatod mentesíti a kisvállalkozókat, a sávos rendszer választásával drágábban jársz. Ezért a helyi rendeletet előbb kell megnézni.',
+    },
+    {
+      q: 'Él-e még az átalányadózók „bevétel 80%-a" iparűzésiadó-alap opciója?',
+      options: [
+        'Igen, 2026-ban is választható',
+        'Nem, 2023. január 1-jétől megszűnt, az egységes sávos rendszer váltotta fel',
+        'Csak kiskereskedőknél él',
+        'Csak 12 millió forint bevétel alatt él',
+      ],
+      answer: 1,
+      explain: 'Ugyanekkor szűnt meg a KATA-s tételes HIPA is. A Htv. mai 39/B. §-a már a KIVA-alanyokról szól — a régi tartalmú találatok elavultak.',
+    },
+    {
+      q: 'Meddig lehet a sávos adóalap-megállapítást választani egy már működő vállalkozásnak?',
+      options: [
+        'Az adóévet megelőző év december 31-ig',
+        'Az adóév május 31-ig, jogvesztő határidővel',
+        'Bármikor, év közben is',
+        'A tevékenység megkezdésétől számított 15 napon belül',
+      ],
+      answer: 1,
+      explain: 'Az előző adóévről szóló HIPA-bevallási nyomtatványon, május 31-ig. A határidő jogvesztő, és a választás önellenőrzéssel nem módosítható.',
+    },
+  ]}
+/>

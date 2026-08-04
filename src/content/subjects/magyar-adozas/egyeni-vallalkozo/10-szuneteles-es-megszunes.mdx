@@ -1,0 +1,111 @@
+---
+title: Szünetelés és megszűnés
+order: 10
+summary: A szünetelés az egyetlen legális kapcsoló a havi 101 682 forintos minimumteherre — de csak teljes hónapra működik, és három év után magától megszűnik a vállalkozás.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Ha nincs bevétel, a főfoglalkozású egyéni vállalkozó akkor is fizeti a havi
+minimumot. Egyetlen eszköz kapcsolja ki: a **szünetelés**.
+
+## A szabályok
+
+| | |
+| --- | --- |
+| Időtartam | **minimum 1 hónap, maximum 3 év** |
+| Hol | a **Vállalkozói Ügysegéden** (2026. február 19-től), elektronikusan |
+| Kezdő nap | **nem lehet korábbi a bejelentést követő napnál**, és utólag nem módosítható |
+| Vége | a folytatást **be kell jelenteni** |
+| 3 év letelte után | ha nem jelented be a folytatást vagy a megszüntetést, a vállalkozói jogosultság **a törvény erejénél fogva megszűnik** |
+
+A szünetelés már a tevékenység megkezdésének bejelentésével egyidejűleg is
+bejelenthető.
+
+## Mi történik közteherben
+
+<Diagram
+  caption="A szünetelés hónapra megy. A töredékhónap nem arányosítható — ez a leggyakoribb tévedés."
+  chart={`flowchart TD
+    S{"A hónap<br/>MINDEN napján<br/>szünetelt?"} -->|igen| A["Nincs TB-járulék<br/>Nincs szocho<br/>A hónap kimarad a<br/>göngyölítés osztójából"]
+    S -->|"nem — pl. 20-án<br/>kezdődött"| B["A TELJES havi<br/>minimálbér után<br/>fizetsz<br/>nincs arányosítás"]
+    style A fill:#f0fdf4,stroke:#22c55e
+    style B fill:#fee2e2,stroke:#ef4444`}
+/>
+
+- **A biztosítás szünetel** → nincs járulék- és szochofizetés.
+- **De csak teljes naptári hónapra.** Ha a szünetelés nem áll fenn a hónap minden
+  napján, **nem lehet arányosítani** — a teljes havi minimum jár. Ezért éri meg a
+  szünetelést a hónap első napjától indítani.
+- Az így kieső hónap a göngyölítéses járulékszámítás **osztójából is kimarad**.
+
+## Adminisztráció szünetelés alatt
+
+| Terület | Szabály |
+| --- | --- |
+| **Szja-bevallás** | nem kell az egyéni vállalkozói tevékenységre vonatkozó bevallás, ha az adóév **minden napján** szüneteltél — kivéve a kisvállalkozói kedvezménnyel, fejlesztési tartalékkal, foglalkoztatási kedvezménnyel, kisvállalkozások adókedvezményével kapcsolatos adófizetést |
+| **2026-os könnyítés** | ha a bevallással le nem fedett időszakban végig szünetelsz, arra az időszakra **nem kell soron kívüli bevallást** benyújtani |
+| **Költség** | a szünetelés ideje alatt **költséget és értékcsökkenést nem számolhatsz el**; ha az adóév utolsó napján szünetelsz, a fenti kedvezmények sem érvényesíthetők |
+| **Folytatáskor** | a szünetelés alatt felmerült elengedhetetlen kiadások a folytatás évében elszámolhatók; a közben beszerzett tárgyi eszközök écs-e elkezdhető |
+| **Bevétel időzítése** | a szünetelés kezdő napjától a bevallás benyújtásáig befolyt ellenérték a **szünetelés megkezdését megelőző napon** megszerzett bevétel |
+| **Bankszámla** | nem kötelező fenntartani; ha fenntartod, **be kell jelentened a szünetelést a bankodnak** |
+| **Adatmódosítás** | szünetelés alatt csak a **megváltozott székhelyadat** jelenthető be |
+| **Kamarai hozzájárulás** | csak az mentesül, aki a **teljes naptári évben** szünetel, és ezt bejelenti a területi kamarának |
+
+## Megszüntetés
+
+- **Hol:** a Vállalkozói Ügysegéden, ingyenesen.
+- **Soron kívüli bevallás:** a megszűnést kiváltó eseményt követő **30 napon
+  belül**, a bevallással még le nem fedett időszakról. Ugyanez jár akkor is, ha a
+  tevékenység folytatására való jogosultságod szűnik meg.
+- **Áfa:** a vállalkozás vagyonában maradt, korábban levont áfájú eszközök után
+  áfafizetési kötelezettség keletkezhet.
+- **Szja:** a megszüntetéskor bizonyos tételeket további bevételnek kell tekinteni,
+  és egyes költségek már nem számolhatók el. Átalányadózónál a **belépéskor
+  megállapított készletérték** ilyenkor növeli a jövedelmet.
+- A megszüntetés utáni bevételre és költségre már az **önálló tevékenységből
+  származó jövedelem** szabályai vonatkoznak.
+
+**Figyelem az adózási formákra:** a tevékenység megszüntetése és adóéven belüli
+újrakezdése megszünteti az átalányadózásra való jogosultságot — 12 hónapos
+visszatérési tilalommal.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Egy vállalkozó június 20-tól szünetelteti a tevékenységét. Mennyi járulékot fizet júniusra?',
+      options: [
+        'Semennyit, mert szünetel',
+        'A minimum arányos részét, 19 napra',
+        'A teljes havi minimumot — szünetelésnél nincs arányosítás',
+        'Csak a szochót, TB-járulékot nem',
+      ],
+      answer: 2,
+      explain: 'A szünetelés csak teljes naptári hónapra mentesít. Ha a hónap bármely napján fennállt a jogviszony, a teljes minimálbér (vagy garantált bérminimum) után kell fizetni.',
+    },
+    {
+      q: 'Meddig szünetelhet egy egyéni vállalkozás, és mi történik utána?',
+      options: [
+        'Legfeljebb 2 évig, utána automatikusan folytatódik',
+        'Legfeljebb 3 évig; ha nem jelentesz be folytatást vagy megszüntetést, a jogosultság a törvény erejénél fogva megszűnik',
+        'Korlátlan ideig',
+        'Legfeljebb 1 évig, utána újra kell alapítani',
+      ],
+      answer: 1,
+      explain: 'Minimum 1 hónap, maximum 3 év. A 2021. július 1. előtt bejelentett szüneteléseknél a maximum még 2 év.',
+    },
+    {
+      q: 'Mi az a 2026-os könnyítés a szünetelésnél?',
+      options: [
+        'A szünetelés alatt is elszámolható az értékcsökkenés',
+        'Ha a bevallással le nem fedett időszakban végig szünetelsz, nem kell soron kívüli bevallást benyújtani',
+        'A szünetelés hónap közben is arányosítható',
+        'A kamarai hozzájárulás alól minden szünetelő mentesül',
+      ],
+      answer: 1,
+      explain: 'A többi állítás hamis: az écs továbbra sem számolható el, arányosítás nincs, a kamarai mentesség pedig teljes éves szünetelést kíván.',
+    },
+  ]}
+/>

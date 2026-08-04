@@ -1,0 +1,124 @@
+---
+title: Indítás és nyilvántartásba vétel
+order: 1
+summary: Ingyenes, percek alatt, egy űrlapon — de az űrlap három olyan döntést kér, ami egy évre szól. Plusz a 2026-os platformváltás.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+Az egyéni vállalkozás indítása **ingyenes**, illetékmentes, és ha az elektronikus
+azonosításod megvan, percek alatt kész. Nincs ügyvéd, nincs alapító okirat,
+nincs törzstőke. A nyilvántartási számot azonnal megkapod, a vállalkozás
+jellemzően a bejelentés napján vagy másnaptól él.
+
+## 2026: új felület
+
+| Dátum | Mi történt |
+| --- | --- |
+| **2026. február 19.** | Elindult a **NAV Ügyfélportál Vállalkozói Ügysegédje** |
+| **2026. március 1. 23:59** | A régi Webes Ügysegéden (`nyilvantarto.hu`) ez volt az utolsó időpont új egyéni vállalkozói ügy indítására |
+
+Aki már működik vagy szünetel, annak **nincs teendője** — a platformváltás nem
+érinti a nyilvántartott adatokat, újrabejelentés nem kell.
+
+## Mi kell hozzá
+
+1. **Ügyfélkapu+ vagy DÁP** (Digitális Állampolgárság mobilalkalmazás). Ha nincs:
+   kormányablak, okmányiroda, NAV ügyfélszolgálat.
+2. Adóazonosító jel és **TAJ-szám**.
+3. **Székhely** (és ha van, telephely) címe.
+4. **Főtevékenység + melléktevékenységek ÖVTJ-kód szerint.** Ez nem formalitás: a
+   főtevékenység dönti el, a minimálbér vagy a garantált bérminimum lesz-e a
+   járulékalapod, és melyik átalányadós költséghányad jár.
+5. Ha a tevékenység igényli: erkölcsi bizonyítvány, képesítés igazolása.
+
+## A három döntés az űrlapon
+
+<Diagram
+  caption="Mindhárom döntés az űrlapon dől el — és mindhárom megkötést jelent a következő időszakra."
+  chart={`flowchart TD
+    U["Bejelentkezés<br/>a Vállalkozói Ügysegéden"] --> D1["1. Adózási forma<br/>KATA / átalányadó / VSZJA"]
+    U --> D2["2. Áfastátusz<br/>alanyi mentes vagy áfás"]
+    U --> D3["3. Főtevékenység<br/>ÖVTJ-kód"]
+    D1 --> K1["kiesésnél 12 hónapos<br/>visszatérési tilalom"]
+    D2 --> K2["túllépésnél 2 éves<br/>visszatérési tilalom"]
+    D3 --> K3["dönt a járulékalapról<br/>és a költséghányadról"]`}
+/>
+
+Az adózási forma és az áfastátusz közvetlenül az űrlapon választható. Később
+módosítani a **T101E** lapon (ÁNYK) vagy **ONYA**-n lehet, közvetlenül a NAV-nál —
+**e-papíron nem**.
+
+## Amit automatikusan kapsz
+
+| Azonosító | Kitől | Mikor |
+| --- | --- | --- |
+| **EVNY nyilvántartási szám** | NAV (az Egyéni Vállalkozók Nyilvántartását 2020 óta a NAV vezeti) | azonnal |
+| **Adószám** | NAV | a nyilvántartásba vétellel |
+| **Statisztikai számjel** | KSH, automatikusan | néhány nap múlva — **a KSH felé nincs bejelentési kötelezettséged** |
+| **Közösségi adószám** | NAV, **csak kérelemre** | előzetesen kell kérni |
+
+A statisztikai számjel első 8 jegye maga az adószám törzsszáma, utána a
+főtevékenység, a gazdálkodási forma és a megye kódja jön. Az adószám első 8
+jegyével bármikor lekérdezhető a KSH oldalán.
+
+## Amit viszont neked kell elintézned
+
+- **Bejelentkezés a helyi iparűzési adó hatálya alá** a székhely szerinti
+  önkormányzatnál, az **E-Önkormányzat Portálon** (`ohp-20.asp.lgov.hu`). Ez nem
+  megy automatikusan a NAV-os bejelentkezéssel.
+- **Kamarai regisztráció** és az évi 5 000 Ft hozzájárulás (határidő március 31.).
+- **Pénzforgalmi bankszámla**, ha áfa fizetésére kötelezett vagy: az adószám
+  megállapításától számított **15 napon belül**. Alanyi mentesként nem kötelező —
+  de elkülönített számlát így is érdemes nyitni, mert a nyilvántartás és egy
+  esetleges ellenőrzés is egyszerűbb vele.
+- **Közösségi adószám**, ha külföldi szolgáltatást veszel igénybe (Google Ads,
+  Meta, AWS) — **előzetesen**, nem utólag.
+
+## Egy csapda induló vállalkozónak
+
+**A jogelőd nélkül alakult adózó a bejelentkezés évében és az azt követő adóévben
+havi áfabevalló.** Ez a leggyakrabban félreértett szabály: attól, hogy kicsi vagy,
+nem leszel automatikusan negyedéves. Alanyi mentesként ez a gyakorlatban nem fáj
+(amíg nincs fizetendő adód, a bevallás alól mentesülsz), de amint egyetlen
+külföldi szolgáltatásszámlád lesz, arra a hónapra jár a bevallás.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Mennyibe kerül és mennyi ideig tart az egyéni vállalkozás bejelentése 2026-ban?',
+      options: [
+        '5 000 Ft illeték, 8 munkanap átfutás',
+        'Ingyenes, és az azonosítás megléte esetén percek alatt kész',
+        'Ingyenes, de 15 napos hatósági eljárás',
+        'Ügyvédi ellenjegyzés kell hozzá',
+      ],
+      answer: 1,
+      explain: 'Díj- és illetékmentes, a nyilvántartási számot azonnal megkapod. Csak Ügyfélkapu+ vagy DÁP azonosítás kell hozzá.',
+    },
+    {
+      q: 'Melyik azonosítót kell külön kérned?',
+      options: [
+        'Az adószámot',
+        'A statisztikai számjelet',
+        'A közösségi adószámot',
+        'Az EVNY nyilvántartási számot',
+      ],
+      answer: 2,
+      explain: 'Az adószám, az EVNY-szám és a statisztikai számjel automatikusan megérkezik. A közösségi adószámot előzetesen, kérelemre adja a NAV — és külföldi szolgáltatás igénybevétele előtt kötelező.',
+    },
+    {
+      q: 'Egy 2026 márciusában induló egyéni vállalkozó milyen áfabevallási gyakorisággal indul?',
+      options: [
+        'Éves, mert kicsi a várható forgalma',
+        'Negyedéves, ez az alapértelmezett',
+        'Havi — a jogelőd nélkül alakult adózó a bejelentkezés évében és az azt követő évben havi bevalló',
+        'Az általa választott gyakoriság szerint',
+      ],
+      answer: 2,
+      explain: 'Alanyi mentesként a bevallás alól mentesülsz, amíg nincs fizetendő adód és közösségi ügyleted — de a besorolás havi, és egy külföldi szolgáltatásszámla azonnal aktiválja.',
+    },
+  ]}
+/>

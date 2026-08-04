@@ -1,0 +1,153 @@
+---
+title: KATA
+order: 6
+summary: Havi 50 000 forint, 18 milliós keret, és egyetlen kifizetői számla, ami azonnal megszünteti az adóalanyiságot. 2026-ban érdemben nem változott.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A 2022 szeptembere óta hatályos KATA (2022. évi XIII. törvény) nem az a KATA,
+amiről a legtöbb cikk szól. A szűkítés brutális volt, és **2026-ban semmi nem
+enyhült rajta**: ugyanaz az 50 000 Ft, ugyanaz a 18 millió, ugyanaz a szigorú
+alanyi kör.
+
+## Ki lehet kataalany
+
+**Kizárólag főfoglalkozású, az egyéni vállalkozói nyilvántartásban szereplő
+egyéni vállalkozó.** Ez a mondat sokakat kizár:
+
+- aki heti 36 órát elérő munkaviszonyban áll (az egyidejű munkaviszonyok
+  munkaideje összeadódik),
+- **nyugdíjas** (kiegészítő tevékenységű),
+- **nappali tagozatos hallgató** (a 25. életévéig a tanulmányait szüneteltető is),
+- aki más vállalkozásban nem kiegészítő tevékenységű társas vállalkozó,
+- **egyéni ügyvéd, közjegyző** (nem az Evectv. szerinti nyilvántartásban van),
+- nevelőszülő, külföldön biztosított (A1), és a felsorolt rokkantsági esetek.
+
+Külön kizáró ok: akinek az adószámát a NAV a bejelentés évében vagy az azt
+megelőző 12 hónapban törölte, illetve aki a választás évében **ingatlan-bérbeadásból**
+(ÖVTJ 68.20) bevételt szerzett.
+
+> A régi katából ismert **25 000 Ft-os és 75 000 Ft-os tétel nem létezik**. A
+> 25 000 Ft-os azért nem, mert a nem főfoglalkozásúak eleve nem lehetnek
+> kataalanyok.
+
+## A kifizetői szabály
+
+<Diagram
+  caption="A kata-alanyiság nem a bevételi keretnél bukik el leggyakrabban, hanem itt."
+  chart={`flowchart TD
+    S["Kisadózó bevételt szerez"] --> Q{"Kitől?"}
+    Q -->|magánszemély| OK["Marad kataalany"]
+    Q -->|"kifizető<br/>(cég, egyéni vállalkozó,<br/>külföldi kifizető is)"| Q2{"TESZOR 49.32.11<br/>taxis személyszállítás?"}
+    Q2 -->|igen| OK
+    Q2 -->|nem| VEGE["Adóalanyiság MEGSZŰNIK<br/>a bevétel megszerzését<br/>MEGELŐZŐ nappal<br/>bejelentés 15 napon belül"]
+    style OK fill:#f0fdf4,stroke:#22c55e
+    style VEGE fill:#fee2e2,stroke:#ef4444`}
+/>
+
+A törvény nem azt mondja, hogy „csak magánszemélynek számlázhatsz" — azt mondja,
+hogy a **kifizetőtől** szerzett bevétel megszünteti az adóalanyiságot, **a bevétel
+megszerzését megelőző nappal**. Vagyis visszamenőleg: a számla kiállításának
+pillanatában már nem vagy kataalany. Az egyetlen nevesített kivétel a **taxis
+személyszállítás** (TESZOR 49.32.11).
+
+## Mennyi és mit vált ki
+
+| | |
+| --- | --- |
+| Tételes adó | **50 000 Ft / hó**, minden **megkezdett** hónapra, arányosítás nélkül |
+| Határidő | a tárgyhónapot követő hó **12.** |
+| Bevételi keret | **18 000 000 Ft / év**, arányosítva: hónapok × 1 500 000 Ft |
+| Keret felett | **40% különadó** — és a tételes adót ettől még fizetni kell |
+| Ellátási alap | **108 000 Ft / hó** |
+| Jövedelemigazoláshoz | a bevallott bevétel **60%-a** |
+
+A tételes adó kiváltja a vállalkozói szja-t és osztalékalap-adót (vagy az
+átalányadót), a saját szja-t, a **tb-járulékot** és a **szochót**. **Nem** váltja
+ki az áfát, az iparűzési adót, a kamarai hozzájárulást, és nem mentesít az
+alkalmazottak utáni közterhek alól.
+
+**Mentesülés a tételes adó alól** azokra a hónapokra, amelyek *egészében* a
+kisadózó táppénzen, csed/gyed/gyes/gyet/gyod/ápolási díjon van, önkéntes
+tartalékos katonai szolgálatot teljesít, fogvatartott, vagy **szünetelteti a
+tevékenységét** — kivéve, ha közben bevételt szerez. Szüneteltetésnél nem kell
+külön bejelenteni, a NAV automatikusan módosít.
+
+## Bevallás
+
+- **A tételes adót nem kell bevallani** — a NAV a bejelentkezés alapján előírja az
+  adószámlán.
+- A **bevételi nyilatkozatot** az adóévet követő **február 25-ig** kell megtenni
+  (a ’KATA nyomtatványon, ONYA-ban is). Ez jogkövetkezmények szempontjából
+  bevallásnak minősül.
+- A 40%-os különadó ugyanezzel a határidővel esedékes.
+- Év közbeni megszűnésnél: a megszűnést követő **30 napon belül**.
+
+## Ami megszünteti — és ami utána jön
+
+A NAV határozattal is megszüntetheti: számla-/nyugtaadás elmulasztása miatti
+bírság, adószámtörlés, **év végén 100 000 Ft-ot meghaladó adótartozás** (ha a
+határozat véglegessé válásáig kifizeted, a NAV visszavonja),
+ingatlan-bérbeadásból származó bevétel, kifizetői bevétel, vagy ha egy hónap
+egészében már nem vagy főfoglalkozású.
+
+**A megszűnés évére és az azt követő 12 hónapra a kata nem választható újra** —
+ugyanaz a szabály, mint az átalányadózásnál.
+
+## Mi változott 2026-ban?
+
+Az anyagi szabályokban **semmi**: 50 000 Ft, 18 M Ft, 40%, 108 000 Ft ellátási
+alap. Egy eljárási újdonság van: a kezdő egyéni vállalkozó a kata választását a
+NAV **Vállalkozói Ügysegédjén** jelentheti be, ami **2026. február 19-től**
+érhető el; a régi Webes Ügysegéden 2026. március 1-jéig lehetett új ügyet
+indítani. Működő vállalkozó továbbra is a **T101E** lapon jelentkezik be.
+
+A „régi KATA visszaállításáról" nincs elfogadott törvénymódosítás — az erről szóló
+hírek nem hatályos jogot írnak le.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Egy kataalany márciusban kiállít egy 200 000 Ft-os számlát egy Kft.-nek. Mi történik?',
+      options: [
+        'Semmi, amíg a kifizetői bevétel nem éri el a 3 millió forintot',
+        'A kata-alanyisága megszűnik a bevétel megszerzését megelőző nappal, és 15 napon belül be kell jelentenie',
+        'A számla összege után 40% különadót fizet, de kataalany marad',
+        'Csak akkor szűnik meg, ha a Kft.-vel korábban munkaviszonyban állt',
+      ],
+      answer: 1,
+      explain: 'A 2022. évi XIII. tv. 5. § (1) g) szerint a kifizetőtől szerzett bevétel megszünteti az adóalanyiságot, visszamenőleg a bevételt megelőző nappal. Egyetlen kivétel a taxis személyszállítás.',
+    },
+    {
+      q: 'Egy vállalkozó 2026. március 1-jétől kataalany, és év végéig 17 millió Ft bevételt szerez. Kell 40%-os különadót fizetnie?',
+      options: [
+        'Nem, mert 18 millió alatt maradt',
+        'Igen, 2 millió forint után — mert a keret arányosítva 10 × 1,5 = 15 millió forint',
+        'Igen, a teljes 17 millió után',
+        'Igen, 17 millió után, de csak ha a bevétel kifizetőtől származik',
+      ],
+      answer: 1,
+      explain: 'A 18 milliós keret csak teljes évnél jár. Tíz hónapra 15 millió, a felette lévő 2 millió után 40% különadó — a tételes adón felül.',
+    },
+    {
+      q: 'Mit NEM vált ki a havi 50 000 Ft tételes adó?',
+      options: [
+        'A saját szja-t és a tb-járulékot',
+        'A szochót',
+        'Az áfát és az iparűzési adót',
+        'A vállalkozói osztalékalap utáni adót',
+      ],
+      answer: 2,
+      explain: 'A kata az szja-t, a tb-járulékot és a szochót váltja ki. Az áfa, a helyi iparűzési adó, a kamarai hozzájárulás és az alkalmazottak közterhei megmaradnak.',
+    },
+    {
+      q: 'Mennyi a kisadózó ellátási alapja 2026-ban?',
+      options: ['50 000 Ft/hó', '108 000 Ft/hó', '179 000 Ft/hó', '322 800 Ft/hó'],
+      answer: 1,
+      explain: '108 000 Ft — ez alapján számítják a nyugdíjat és a pénzbeli ellátásokat. A régi kata 75 000 Ft-os tételéhez tartozó magasabb, 179 000 Ft-os alap már nem létezik.',
+    },
+  ]}
+/>

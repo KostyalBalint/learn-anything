@@ -198,6 +198,179 @@ export const MODELS: Record<string, Model> = {
       };
     },
   },
+
+  /**
+   * Hungarian sole trader (egyéni vállalkozó) on átalányadózás, 2026 rules.
+   *
+   * jövedelem   = bevétel × (1 − költséghányad)
+   * szja-alap   = jövedelem − 1 936 800 Ft (the tax-free half of the annual minimum wage)
+   * járulékalap = szja-alap, but for a full-time trader at least 12 × the minimum
+   *               wage (or the guaranteed minimum wage for skilled main activities).
+   *
+   * The minimum base is what makes the curve flat at the bottom: below roughly
+   * 5.5M Ft of revenue the burden barely moves, because it is a floor, not a rate.
+   */
+  'ev-jarulek': {
+    params: [
+      { name: 'bevetel', label: 'Éves bevétel', min: 0, max: 38, step: 0.5, default: 12, unit: ' M Ft' },
+      { name: 'koltseghanyad', label: 'Költséghányad', min: 45, max: 90, step: 5, default: 45, unit: '%' },
+      { name: 'garantalt', label: 'Alap: 0 = minimálbér, 1 = gar. bérminimum', min: 0, max: 1, default: 0 },
+      { name: 'mellekallas', label: '0 = főfoglalkozású, 1 = mellékállású', min: 0, max: 1, default: 0 },
+    ],
+    run: ({ bevetel, koltseghanyad, garantalt, mellekallas }) => {
+      const MENTES = 1_936_800; // az éves minimálbér fele
+      const minAlapEves = (garantalt ? 373_200 : 322_800) * 12;
+      const ft = (n: number) => `${Math.round(n).toLocaleString('hu-HU')} Ft`;
+
+      const terhek = (bevetelFt: number) => {
+        const jovedelem = bevetelFt * (1 - koltseghanyad / 100);
+        const szjaAlap = Math.max(0, jovedelem - MENTES);
+        const jarulekAlap = mellekallas ? szjaAlap : Math.max(szjaAlap, minAlapEves);
+        const szja = szjaAlap * 0.15;
+        const tb = jarulekAlap * 0.185;
+        const szocho = jarulekAlap * 0.13;
+        return { jovedelem, szja, tb, szocho, osszes: szja + tb + szocho };
+      };
+
+      const be = bevetel * 1_000_000;
+      const t = terhek(be);
+      const netto = be - t.osszes;
+
+      const data = Array.from({ length: 39 }, (_, i) => {
+        const b = i * 1_000_000;
+        const x = terhek(b);
+        return {
+          bevetel: i,
+          kozteher: Math.round(x.osszes / 1000),
+          netto: Math.round((b - x.osszes) / 1000),
+        };
+      });
+
+      return {
+        readouts: [
+          {
+            label: 'Átalányjövedelem',
+            value: ft(t.jovedelem),
+            hint: `${100 - koltseghanyad}% a bevételből, ebből ${ft(MENTES)} adómentes`,
+          },
+          {
+            label: 'Éves közteher',
+            value: ft(t.osszes),
+            hint: `szja ${ft(t.szja)} · tb ${ft(t.tb)} · szocho ${ft(t.szocho)}`,
+          },
+          {
+            label: 'Marad havonta',
+            value: ft(netto / 12),
+            hint: be > 0 ? `effektív teher: ${((t.osszes / be) * 100).toFixed(1)}%` : 'nincs bevétel',
+          },
+        ],
+        chart: {
+          type: 'line',
+          data,
+          xKey: 'bevetel',
+          xLabel: 'éves bevétel (millió Ft)',
+          yLabel: 'ezer Ft / év',
+          series: [
+            { key: 'netto', label: 'Nettó' },
+            { key: 'kozteher', label: 'Közteher' },
+          ],
+        },
+      };
+    },
+  },
+
+  /**
+   * The same sole trader under all three 2026 regimes, so the crossover is visible.
+   *
+   * Átalányadózás: 45% flat cost ratio, real costs irrelevant.
+   * VSZJA: real costs deducted, kivét set to the minimum contribution base,
+   *        then 9% on the profit and 15 + 13% on what is taken out as osztalék.
+   * KATA:  600 000 Ft/year regardless of anything, + 40% above the 18M cap.
+   *
+   * KATA is only lawful for a full-time trader invoicing private individuals —
+   * the model computes it anyway so the size of the gap is visible.
+   */
+  'ado-forma': {
+    params: [
+      { name: 'bevetel', label: 'Éves bevétel', min: 1, max: 38, step: 0.5, default: 15, unit: ' M Ft' },
+      { name: 'koltseg', label: 'Valódi, számlázott költség', min: 0, max: 80, step: 5, default: 20, unit: '% a bevételből' },
+      { name: 'garantalt', label: 'Alap: 0 = minimálbér, 1 = gar. bérminimum', min: 0, max: 1, default: 0 },
+    ],
+    run: ({ bevetel, koltseg, garantalt }) => {
+      const MENTES = 1_936_800;
+      const PLAFON = 7_747_200; // szocho adófizetési felső határ: 24 × minimálbér
+      const minAlap = (garantalt ? 373_200 : 322_800) * 12;
+      const ft = (n: number) => `${Math.round(n).toLocaleString('hu-HU')} Ft`;
+
+      const atalany = (be: number) => {
+        const jovedelem = be * 0.55;
+        const szjaAlap = Math.max(0, jovedelem - MENTES);
+        const jarulekAlap = Math.max(szjaAlap, minAlap);
+        return szjaAlap * 0.15 + jarulekAlap * 0.315;
+      };
+
+      const vszja = (be: number) => {
+        const koltsegFt = be * (koltseg / 100);
+        // A kivét a saját munka díja — itt a minimum járulékalappal számolunk.
+        const kivet = Math.min(minAlap, Math.max(0, be - koltsegFt));
+        const jarulekAlap = Math.max(kivet, minAlap);
+        const adoalap = Math.max(0, be - koltsegFt - kivet);
+        const vallalkozoiSzja = adoalap * 0.09;
+        const osztalek = adoalap - vallalkozoiSzja;
+        const szochoKeret = Math.max(0, PLAFON - kivet);
+        return (
+          kivet * 0.15 +
+          jarulekAlap * 0.315 +
+          vallalkozoiSzja +
+          osztalek * 0.15 +
+          Math.min(osztalek, szochoKeret) * 0.13
+        );
+      };
+
+      const kata = (be: number) => 600_000 + Math.max(0, be - 18_000_000) * 0.4;
+
+      const be = bevetel * 1_000_000;
+      const a = atalany(be);
+      const v = vszja(be);
+      const k = kata(be);
+      const legjobb = Math.min(a, v, k);
+      const nev = legjobb === k ? 'KATA' : legjobb === a ? 'Átalányadó' : 'VSZJA';
+
+      const data = Array.from({ length: 39 }, (_, i) => {
+        const b = i * 1_000_000;
+        return {
+          bevetel: i,
+          atalany: Math.round(atalany(b) / 1000),
+          vszja: Math.round(vszja(b) / 1000),
+          kata: Math.round(kata(b) / 1000),
+        };
+      });
+
+      return {
+        readouts: [
+          { label: 'Átalányadó (45%)', value: ft(a), hint: `effektív ${((a / be) * 100).toFixed(1)}%` },
+          { label: 'VSZJA', value: ft(v), hint: `${koltseg}% valódi költséggel` },
+          {
+            label: 'KATA',
+            value: ft(k),
+            hint: bevetel > 18 ? '18 M Ft felett 40% különadóval' : `a legolcsóbb: ${nev}`,
+          },
+        ],
+        chart: {
+          type: 'line',
+          data,
+          xKey: 'bevetel',
+          xLabel: 'éves bevétel (millió Ft)',
+          yLabel: 'éves közteher (ezer Ft)',
+          series: [
+            { key: 'atalany', label: 'Átalányadó' },
+            { key: 'vszja', label: 'VSZJA' },
+            { key: 'kata', label: 'KATA' },
+          ],
+        },
+      };
+    },
+  },
 };
 
 export type SimulationProps = {

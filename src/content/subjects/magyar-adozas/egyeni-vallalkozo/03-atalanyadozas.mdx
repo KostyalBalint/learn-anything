@@ -1,0 +1,236 @@
+---
+title: Átalányadózás
+order: 3
+summary: Költséghányad számlagyűjtés nélkül — 45, 80 vagy 90%. A 2026-os emelés, az adómentes 1 936 800 forint, és a „kizárólag" szó, ami egyetlen rossz számlától elveszi a kedvező sávot.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Chart from '../../../../components/Chart';
+import Quiz from '../../../../components/Quiz';
+
+Az átalányadózás alkuja egy mondat: **nem kell költséget igazolnod, cserébe a
+törvény mondja meg, mennyi a költséged.** Ha a valós költséghányadod kisebb, mint
+amit a törvény ad, nyertél. Ha nagyobb, a tételes elszámolás olcsóbb.
+
+```text
+jövedelem            = bevétel × (1 − költséghányad)
+adóköteles jövedelem = MAX(0, jövedelem − 1 936 800)
+szja                 = adóköteles jövedelem × 15%
+```
+
+## A 2026-os változás: 40% → 45%
+
+Az általános költséghányad **2026. január 1-jétől 45%** (2025-ben 40% volt), és a
+2025. évi LXXXIV. törvény szerint **2027-től 50%**-ra megy tovább. Ez az év
+legnagyobb kedvezménye az egyéni vállalkozóknak — nem a kulcs csökkent, hanem az
+adóalap.
+
+| Sáv | Kire | Jövedelem a bevételből |
+| --- | --- | --- |
+| **45%** | mindenki, aki nem esik a másik kettő alá (IT, tanácsadás, oktatás, tervezés) | 55% |
+| **80%** | az Szja tv. 53. § (2) szerinti felsorolt tevékenységek | 20% |
+| **90%** | kizárólag kiskereskedelem (vendéglátás nélkül) | 10% |
+
+## A 80%-os lista
+
+Ide az **Szja tv. 53. § (2) a)–m)** pontjaiban felsorolt tevékenységek tartoznak.
+2025 óta a törvény **ÖVTJ-kódokkal** azonosítja őket (korábban TESZOR volt) — a
+neten keringő régebbi listák emiatt elavultak.
+
+| Terület | Példák (ÖVTJ'24) |
+| --- | --- |
+| Mezőgazdaság, erdő, bányászat, építőipari kivitelezés | 01, 02, 05–09, 41–42 |
+| Mezőgazdasági és erdészeti szolgáltatás, zöldterület-kezelés | 016, 017001, 0240, 8130 |
+| Halászat, halgazdálkodás | 031, 032 |
+| Feldolgozóipari termék-előállítás és szolgáltatás | 10–32 — **kivéve** bérmunkában végzett szolgáltatás és egyéb sokszorosítás (1820) |
+| Speciális szaképítés (épületgépészeti javítással) | 43 |
+| Gép-, gépjármű-, háztartásicikk-javítás | 331, 4520, 952 |
+| Taxis személyszállítás, sofőrszolgálat, közúti áruszállítás | 4932, 493901, 493909, 4941 |
+| Számítógép-, kommunikációseszköz-javítás | 951 |
+| Fényképészet | 7420 |
+| Mosás-tisztítás, fodrászat-szépségápolás, hobbiállat-gondozás | 9601, 9602, 960909–960911 |
+| **Vendéglátás** | 56 |
+| Járművezető-oktatás | 855301 |
+| Postai közreműködői tevékenység | 532003 |
+
+**A vendéglátás 80%-os, nem 90%-os.** A törvény kifejezetten kiveszi a 90%-os
+kiskereskedelmi sávból.
+
+## Három csapda a besorolásnál
+
+<Diagram
+  caption="Egyetlen, a sávon kívül eső számla visszamenőleg viszi le a költséghányadot."
+  chart={`flowchart TD
+    A["80%-os körbe tartozó<br/>vállalkozó"] --> B{"Az adóév EGÉSZÉBEN<br/>kizárólag ilyen<br/>tevékenységből<br/>szerzett bevételt?"}
+    B -->|igen| C["80% költséghányad<br/>jövedelem = bevétel 20%-a"]
+    B -->|"nem — egyetlen<br/>45%-os számla is elég"| D["45% költséghányad<br/>AZ ÉV ELSŐ NAPJÁRA<br/>VISSZAMENŐLEG"]
+    style C fill:#f0fdf4,stroke:#22c55e
+    style D fill:#fee2e2,stroke:#ef4444`}
+/>
+
+1. **Nem a bejelentett tevékenység számít, hanem amiből ténylegesen bevételed
+   származott** — a kiállított bizonylat alapján.
+2. **A „kizárólag" szó szerint értendő.** A 80% és a 90% is csak akkor jár, ha az
+   adóév egészében kizárólag az adott körből szerzel bevételt.
+3. **A visszaesés visszamenőleges.** Ha év közben úgy változik a tevékenységed,
+   hogy már nem jogosít a magasabb hányadra, **az év első napjára visszamenőleg**
+   át kell térned az alacsonyabbra — a korábbi hónapok bevételeire is.
+
+## Az adómentes 1 936 800 forint
+
+Az átalányban megállapított jövedelem **éves minimálbér felét meg nem haladó
+része adómentes**. Ez 2026-ban 1 936 800 Ft — és mivel jövedelemre vonatkozik,
+más-más bevételt jelent költséghányadonként:
+
+| Költséghányad | Ennyi **bevételig** nincs szja |
+| --- | --- |
+| 45% | 3 521 455 Ft |
+| 80% | 9 684 000 Ft |
+| 90% | 19 368 000 Ft |
+
+Két fontos részlet:
+
+- **Év közbeni belépésnél nem kell arányosítani** — a teljes 1 936 800 Ft-tal
+  számolhatsz akkor is, ha júliusban kezdtél.
+- Az adómentes rész **nem képez járulékalapot** — de főfoglalkozásúként ettől még
+  fizeted a minimumjárulékot. A mentesség csak a mellékállásúnál és a nyugdíjasnál
+  jelent tényleges nulla közterhet.
+
+## Az effektív adóteher
+
+A minimumjárulék miatt a görbe alul lapos: kis bevételnél a teher nem a
+százalékból jön, hanem a padlóból. Alacsony bevételnél ez brutális effektív
+kulcsot ad, aztán a görbe gyorsan lejt.
+
+export const effektiv = (() => {
+  const MENTES = 1_936_800;
+  const MIN_ALAP = 322_800 * 12;
+  const rows = [];
+  for (let m = 2; m <= 38; m += 2) {
+    const be = m * 1_000_000;
+    const calc = (kh) => {
+      const jov = be * (1 - kh);
+      const szjaAlap = Math.max(0, jov - MENTES);
+      const jarulek = Math.max(szjaAlap, MIN_ALAP);
+      return Math.round(((szjaAlap * 0.15 + jarulek * 0.315) / be) * 1000) / 10;
+    };
+    rows.push({ bevetel: m, 'kh45': calc(0.45), 'kh80': calc(0.8), 'kh90': calc(0.9) });
+  }
+  return rows;
+})();
+
+<Chart
+  client:visible
+  type="line"
+  data={effektiv}
+  xKey="bevetel"
+  xLabel="éves bevétel (millió Ft)"
+  yLabel="effektív közteher (%)"
+  series={[
+    { key: 'kh45', label: '45% költséghányad' },
+    { key: 'kh80', label: '80% költséghányad' },
+    { key: 'kh90', label: '90% költséghányad' },
+  ]}
+/>
+
+Az ábra főfoglalkozású vállalkozóval, minimálbér-alapú minimumjárulékkal számol
+(szja 15% + tb 18,5% + szocho 13%). Az áfa és az iparűzési adó nincs benne.
+
+## Belépés, kilépés, visszatérés
+
+**Ki választhatja?** Gyakorlatilag mindenki. **Nincs előző évi bevételi korlát**
+(2023 óta), és **nincs tevékenységi kizárás** sem — a tevékenység csak azt dönti
+el, melyik költséghányadot használhatod. Egy megkötés van: az átalányadózás
+**csak a teljes egyéni vállalkozói tevékenységre** választható, tevékenységenként
+vegyíteni nem lehet.
+
+Bejelentés:
+
+- **Induló vállalkozó:** a NAV-hoz történő bejelentkezéskor.
+- **Működő vállalkozó:** a **T101E** adatlapon, illetve az előző évre benyújtott
+  szja-bevallásban tett nyilatkozattal a következő adóévre.
+- **VSZJA-s visszamenőleg is választhatja:** az éves szja-bevallásban dönthet úgy,
+  hogy a már lezárt adóévre átalányadózik.
+
+**Mikor szűnik meg a jogosultság?**
+
+1. A bevételi értékhatár (38 736 000 / 193 680 000 Ft) túllépésével.
+2. A tevékenység megszüntetésével és adóéven belüli újrakezdésével.
+3. Ha a NAV **számla- vagy nyugtaadás elmulasztásáért** véglegesen mulasztási
+   bírságot szab ki — a határozat véglegessé válásának napjával.
+
+A következmény mindhárom esetben ugyanaz és fájdalmas: **az adóév egészére
+visszamenőleg** át kell térni a vállalkozói jövedelem szerinti adózásra, pénztárkönyvvel
+és részletező nyilvántartásokkal együtt. Ezért kell a költségszámlákat akkor is
+megőrizni, ha átalányadózóként soha nem használod őket.
+
+**Visszatérési tilalom: a megszüntetés (megszűnés) évére és az azt követő
+12 hónapra** nem választható újra. (A régi, 4 éves szabály 2021 előtti jogállapot
+— ne azzal számolj.)
+
+## Nyilvántartás
+
+Ha nem érvényesítesz áfalevonási jogot, **elég a bevételi nyilvántartás** — a
+pénztárkönyv bevételi adatai. De:
+
+- a **költségszámlákat meg kell őrizni** az elévülésig, mert a jogosultság
+  elvesztése visszamenőleg tételes elszámolást követel;
+- a számla- és nyugtaadási, bizonylat-kiállítási, adatszolgáltatási
+  kötelezettség alól az átalányadózás **nem mentesít**;
+- ha alkalmazottad van, a kifizetői nyilvántartások is járnak.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Mennyi 2026-ban az általános költséghányad, és mennyi volt 2025-ben?',
+      options: [
+        '40% mindkét évben',
+        '2025-ben 40%, 2026-ban 45% (2027-től 50%)',
+        '2025-ben 45%, 2026-ban 50%',
+        '2026-ban 40%, mert az emelés csak 2027-től él',
+      ],
+      answer: 1,
+      explain: 'A 2025. évi LXXXIV. törvény két lépcsőben emeli: 45% 2026-tól, 50% 2027-től. Az adóalap csökken, a 15%-os kulcs marad.',
+    },
+    {
+      q: 'Egy vendéglátással foglalkozó egyéni vállalkozó milyen költséghányadot alkalmazhat?',
+      options: [
+        '90%, mert kiskereskedelmi tevékenység',
+        '80%, mert a törvény a vendéglátást a 80%-os körbe sorolja és kifejezetten kiveszi a 90%-os sávból',
+        '45%, mert nincs a felsorolásban',
+        'Szabadon választhat 80% és 90% között',
+      ],
+      answer: 1,
+      explain: 'Az ÖVTJ 56 (vendéglátás) az 53. § (2) k) pontja szerint 80%-os. A 90%-os kiskereskedelmi sáv szövege kifejezetten kizárja.',
+    },
+    {
+      q: 'Egy 80%-os körbe tartozó autószerelő szeptemberben kiállít egy tanácsadási számlát. Mi történik?',
+      options: [
+        'Semmi, a szeptemberi bevételre 45%, a többire 80% jár',
+        'Októbertől kell 45%-ra váltania',
+        'Az év első napjára visszamenőleg 45%-os költséghányadra kell áttérnie — a januári bevételekre is',
+        'Elveszti az átalányadózásra való jogosultságát',
+      ],
+      answer: 2,
+      explain: 'Az Szja tv. 53. § (3) szerint a változás időpontjában az év első napjára visszamenőleg át kell térni az alacsonyabb költséghányadra. A jogosultság maga megmarad, csak a hányad romlik.',
+    },
+    {
+      q: '45%-os költséghányaddal mekkora éves bevételig nem kell szja-t fizetni?',
+      options: ['1 936 800 Ft', '3 521 455 Ft', '3 873 600 Ft', '9 684 000 Ft'],
+      answer: 1,
+      explain: 'Az adómentesség a jövedelemre vonatkozik (1 936 800 Ft), ami 55%-os jövedelemhányadnál 1 936 800 / 0,55 = 3 521 455 Ft bevételt jelent. Járulékot főfoglalkozásúként ettől függetlenül fizetni kell.',
+    },
+    {
+      q: 'Meddig nem választható újra az átalányadózás, ha megszűnt a jogosultság?',
+      options: [
+        '4 évig',
+        'A megszűnés évére és az azt követő 12 hónapra',
+        'A következő adóév végéig',
+        'Nincs korlátozás, bármikor visszaléphet',
+      ],
+      answer: 1,
+      explain: 'Szja tv. 50. § (7). A 4 éves tilalom 2021 előtti jogállapot volt.',
+    },
+  ]}
+/>
