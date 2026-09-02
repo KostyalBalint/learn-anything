@@ -1,0 +1,98 @@
+---
+title: Multi-stage builds
+order: 5
+summary: Why your shipped image doesn't need a compiler, and how one Dockerfile can build with it anyway.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Chart from '../../../components/Chart';
+
+A naive Dockerfile for a compiled or bundled app tends to ship its entire
+build toolchain — compiler, package manager cache, dev dependencies — inside
+the image that runs in production. None of that is needed at runtime; it's
+dead weight that makes images slower to pull and widens what's exposed if the
+container is ever compromised.
+
+**Multi-stage builds** solve this with more than one `FROM` in a single
+Dockerfile. Each `FROM` starts a new, independent stage; a later stage can
+`COPY --from=<stage>` specific files out of an earlier one, and only the
+*final* stage becomes the image that gets tagged.
+
+```dockerfile
+# ---- build stage ----
+FROM node:20 AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build          # produces /app/dist
+
+# ---- runtime stage ----
+FROM node:20-slim
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+CMD ["node", "dist/server.js"]
+```
+
+<Diagram
+  caption="Only the final stage is tagged and pushed. The build stage — and everything only it needed — is discarded."
+  chart={`flowchart LR
+  subgraph s1["stage: build (node:20)"]
+    src[source] --> compiler[full toolchain + devDeps]
+    compiler --> dist[dist/]
+  end
+  subgraph s2["stage: runtime (node:20-slim)"]
+    dist2[dist/ only]
+    prod[prod deps only]
+  end
+  dist -->|COPY --from=build| dist2
+  s2 -->|tagged image| out(["myapp:1.4"])`}
+/>
+
+The `node:20` build stage — full toolchain, dev dependencies, source maps,
+everything `npm run build` needed — never gets tagged or pushed. Only `dist/`
+and production dependencies cross into the `node:20-slim` runtime stage that
+actually ships.
+
+## Where the size actually goes
+
+export const imageSizes = [
+  { build: 'Single-stage (node:20 + full toolchain)', mb: 1150 },
+  { build: 'Multi-stage (node:20-slim + dist only)', mb: 180 },
+];
+
+<Chart
+  client:visible
+  type="bar"
+  data={imageSizes}
+  xKey="build"
+  xLabel="build strategy"
+  yLabel="image size (MB)"
+  legend={false}
+  series={[{ key: 'mb', label: 'Image size (MB)' }]}
+/>
+
+Figures above are illustrative, but the shape holds for any compiled or
+bundled language: Go binaries dropped into `scratch` or `distroless`, a Java
+`.jar` copied out of a Maven build stage into a JRE-only image, a Vite/webpack
+`dist/` copied into `nginx:alpine`. Same pattern every time — build fat,
+ship thin.
+
+## Naming and targeting stages
+
+`AS build` names a stage so later stages (or the CLI) can reference it. You
+can also stop the build early at a specific stage — useful for a dev image
+that *should* keep the toolchain:
+
+```bash
+docker build --target build -t myapp:dev .     # stop at the build stage
+docker build -t myapp:1.4 .                    # default: build through the last stage
+```
+
+That's one Dockerfile serving both a full-toolchain dev image and a minimal
+production image, with the shared early layers (base image, dependency
+install) cached and reused between the two.
+
+Next: running more than one of these containers together, wired up on purpose, without typing a wall of `docker run` flags every time.

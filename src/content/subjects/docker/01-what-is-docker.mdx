@@ -1,0 +1,106 @@
+---
+title: What Docker actually is
+order: 1
+summary: Images, containers, and why this isn't a lightweight virtual machine.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+A **container** is not a small virtual machine. A VM virtualizes hardware and
+boots a full guest OS kernel; a container is just an ordinary Linux process
+that the kernel has fenced off using **namespaces** (it can only see its own
+filesystem, process tree, network interfaces, hostname) and **cgroups** (it
+can only use a capped share of CPU/memory). There's one shared kernel — the
+host's — underneath every container.
+
+<Diagram
+  caption="A VM virtualizes hardware per guest. Containers are processes isolated by the same kernel."
+  chart={`flowchart TB
+  subgraph VM["Virtual machines"]
+    direction TB
+    hw1[Hardware] --> hv[Hypervisor]
+    hv --> g1[Guest OS] --> a1[App]
+    hv --> g2[Guest OS] --> a2[App]
+  end
+  subgraph CT["Containers"]
+    direction TB
+    hw2[Hardware] --> ho[Host OS + kernel]
+    ho --> eng[Container engine]
+    eng --> c1[Container: App] 
+    eng --> c2[Container: App]
+  end`}
+/>
+
+That's why containers start in milliseconds instead of minutes, and why a
+container image is megabytes instead of gigabytes: there's no kernel to ship,
+just the application and whatever userland libraries it needs.
+
+## Image vs. container
+
+These two words are not interchangeable, and mixing them up is the single most
+common source of confusion for beginners:
+
+- An **image** is a read-only template — application code, a runtime,
+  libraries, and filesystem, packaged as layers on disk. It does nothing by
+  itself.
+- A **container** is a running instance of an image, with a thin writable
+  layer on top and its own process, network, and filesystem namespace.
+
+The relationship is the same as a class and an object: one image, run
+`docker run` three times, and you get three independent containers — same
+starting filesystem, three separate writable layers, three separate
+processes. Stop a container and its writable layer (and anything the process
+wrote to it) is gone unless you removed it with `--rm` or persisted state
+outside the container (more on that in [networking &amp; volumes](04-networking-and-volumes)).
+
+## The pieces talking to each other
+
+Running `docker run nginx` involves more than "Docker starts nginx":
+
+<Diagram
+  caption="The Docker CLI never touches containers directly — it talks to the daemon over an API."
+  chart={`flowchart LR
+  cli[docker CLI] -->|REST API| daemon[dockerd]
+  daemon -->|has image?| local[(Local image cache)]
+  daemon -.->|no: pull| registry[(Registry\ne.g. Docker Hub)]
+  registry -.-> local
+  daemon -->|create + start| ctr([Container process])`}
+/>
+
+| Piece | What it does |
+| --- | --- |
+| `docker` CLI | The client. Formats your command as an API call — it never touches containers itself. |
+| `dockerd` (daemon) | Does the real work: builds images, pulls/pushes, creates containers, wires networking. |
+| Registry | Stores images by name and tag (`nginx:1.27`). Docker Hub is the default; most teams also run a private one. |
+| Image cache | The daemon's local store. A pull is skipped entirely if the image (by digest) is already there. |
+
+This client/daemon split is why `docker` commands work identically whether the
+daemon is on your laptop or on a remote build server — the CLI just points at
+a different socket or host.
+
+## Vocabulary check
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'What isolates a container from other processes on the same host?',
+      back: 'Linux namespaces (separate view of filesystem, processes, network, hostname) and cgroups (resource limits). There is no separate kernel — containers share the host kernel.',
+    },
+    {
+      front: 'You run `docker run redis` three times. How many images and how many containers exist?',
+      back: 'One image (shared, read-only, pulled once) and three containers (each with its own writable layer and process).',
+    },
+    {
+      front: 'Does the `docker` CLI start containers directly?',
+      back: 'No. It sends a request to the `dockerd` daemon over its API, and the daemon does the actual work.',
+    },
+    {
+      front: 'Why do containers start so much faster than VMs?',
+      back: "There's no guest kernel to boot — a container is just a host process launching under namespace/cgroup restrictions.",
+    },
+  ]}
+/>
+
+Next: where an image's layers actually come from.

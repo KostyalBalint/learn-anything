@@ -1,0 +1,112 @@
+---
+title: Running and inspecting containers
+order: 3
+summary: docker run flags, the container lifecycle, and the commands you'll use every day to see what's actually happening inside one.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+```bash
+docker run -d \
+  --name web \
+  -p 8080:80 \
+  -e LOG_LEVEL=debug \
+  --restart unless-stopped \
+  nginx:1.27
+```
+
+| Flag | Does |
+| --- | --- |
+| `-d` | Detached — run in the background and print the container ID, instead of attaching your terminal to it. |
+| `--name web` | A human name instead of a random one. Must be unique among containers on this host. |
+| `-p 8080:80` | Publish: `host_port:container_port`. Without `-p`, the container's ports exist only on its private network. |
+| `-e LOG_LEVEL=debug` | Set an environment variable inside the container. |
+| `--restart unless-stopped` | Restart policy — see below. |
+| `--rm` | Remove the container automatically the moment it exits. Good for one-off/throwaway runs. |
+| `-v` | Mount a volume or bind mount — covered next page. |
+
+## The lifecycle
+
+A container is a state machine, not an on/off switch:
+
+<Diagram
+  caption="docker stop sends SIGTERM and waits (default 10s) before SIGKILL. docker kill skips straight to SIGKILL."
+  chart={`stateDiagram-v2
+  [*] --> Created: docker create
+  Created --> Running: docker start
+  Running --> Paused: docker pause
+  Paused --> Running: docker unpause
+  Running --> Exited: docker stop / process exits
+  Running --> Exited: docker kill
+  Exited --> Running: docker start
+  Exited --> [*]: docker rm`}
+/>
+
+`docker run` is shorthand for `docker create` + `docker start` in one step.
+The distinction matters once you're scripting: `create` lets you set up a
+container without starting it, `start` (re)starts an existing, stopped one —
+same container ID, same writable layer, nothing lost in between.
+
+**`stop` vs. `kill`**: `stop` sends `SIGTERM`, gives the process a grace
+period (10s by default) to shut down cleanly, then sends `SIGKILL` if it
+hasn't exited. `kill` sends `SIGKILL` immediately — no grace period, no
+chance for the app to flush anything.
+
+## Restart policies
+
+| Policy | Restarts when |
+| --- | --- |
+| `no` (default) | Never automatically. |
+| `on-failure[:N]` | Only on a non-zero exit code, optionally capped at N attempts. |
+| `unless-stopped` | Always, except after an explicit `docker stop` — and it *will* restart again after the next daemon/host reboot. |
+| `always` | Always, including after a daemon restart, even if you'd previously `docker stop`'d it (a manual start clears that memory). |
+
+For a long-lived service, `unless-stopped` is almost always what you want:
+crash-looping is retried, but an intentional stop stays stopped.
+
+## Looking inside a running container
+
+```bash
+docker ps                     # running containers
+docker ps -a                  # + stopped ones
+docker logs -f web            # follow stdout/stderr
+docker exec -it web sh        # a shell inside the running container
+docker inspect web            # full JSON: config, mounts, network, state
+docker stats                  # live CPU/memory/network per container
+```
+
+`docker exec` runs a **new** process inside the container's existing
+namespaces — it does not restart or attach to the container's main process.
+Exit that shell and the container keeps running unaffected, because PID 1
+inside the container was never touched.
+
+That last point is also why a container exits the instant its main process
+exits, and why `CMD` matters more than it looks: if PID 1 is a shell script
+that launches your app in the background and then the script itself exits,
+Docker sees the container as done — regardless of whether your app is still
+technically running.
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'You run docker exec -it web sh and then exit the shell. Does the web container stop?',
+      back: 'No. exec starts a second process inside the container\'s namespaces; the container\'s life is tied to its original PID 1, not to the exec session.',
+    },
+    {
+      front: 'docker stop vs docker kill — what\'s the practical difference?',
+      back: 'stop sends SIGTERM and waits (10s default) for a graceful exit before SIGKILL. kill sends SIGKILL immediately, no grace period.',
+    },
+    {
+      front: 'A container has --restart always and you docker stop it, then reboot the host. What happens?',
+      back: 'It restarts on boot. always restarts unconditionally after a daemon restart, even overriding a prior manual stop — unlike unless-stopped.',
+    },
+    {
+      front: 'You run docker run -e PORT=3000 myapp with no -p flag. Can you reach the app from your host browser?',
+      back: 'No — -e only sets an env var inside the container. Without -p host:container, the port is only reachable on the container\'s private network.',
+    },
+  ]}
+/>
+
+Next: what that private network actually is, and how to make data outlive a container.

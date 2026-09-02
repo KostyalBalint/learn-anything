@@ -1,0 +1,7 @@
+# Subject-level metadata. One per subject folder.
+# Files starting with `_` are never treated as content pages.
+title: Docker
+summary: Images, containers, and Compose — how to package software once and run it anywhere.
+order: 4
+# Any Lucide icon name: https://lucide.dev/icons
+icon: container

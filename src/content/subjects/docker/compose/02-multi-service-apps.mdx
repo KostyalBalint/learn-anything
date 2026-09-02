@@ -1,0 +1,141 @@
+---
+title: Multi-service apps
+order: 2
+summary: A web app, a database, and a cache — wired together, with the app waiting for the database to actually be ready.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+import Quiz from '../../../../components/Quiz';
+
+A realistic app is rarely one container. Here's a web API backed by Postgres
+and Redis — the shape of a huge fraction of real-world `compose.yaml` files:
+
+```yaml
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://app:app@db:5432/app
+      REDIS_URL: redis://cache:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  cache:
+    image: redis:7-alpine
+
+volumes:
+  pgdata:
+```
+
+<Diagram
+  caption="Every service resolves the others by name on the project's shared network. Only web publishes a port to the host."
+  chart={`flowchart LR
+  client([your browser]) -->|:8080| web
+  web -->|"db:5432"| db[(postgres)]
+  web -->|"cache:6379"| cache[(redis)]
+  db --> vol[("volume: pgdata")]`}
+/>
+
+Two things do the real work here:
+
+**Service names are hostnames.** `DATABASE_URL` points at `db`, not an IP or
+`localhost` — `localhost` inside the `web` container means the `web`
+container itself, never a sibling service. This is the Compose network's DNS
+from the previous page, used for real: any service can reach any other by
+its key in the file.
+
+**`depends_on` controls start *order*, and optionally start *health*.**
+Bare `depends_on: [db]` only waits for the container to be *created* —
+Postgres inside it might still be initializing when `web` tries to connect
+and fails. `condition: service_healthy` instead waits for `db`'s
+`healthcheck` to actually pass, which needs the `healthcheck:` block defined
+on `db` — without one, `service_healthy` has nothing to wait on. `cache` has
+no healthcheck, so `service_started` (container running, nothing more) is the
+strongest guarantee available for it.
+
+This is also why a container-level restart policy and Compose's dependency
+ordering solve different problems: `depends_on` only matters at `up` time.
+If `db` later crashes and restarts, Compose does not restart or pause `web`
+for you — `web`'s own reconnect logic has to handle a database that
+disappears and comes back, same as it would running outside Compose.
+
+## Build args and image reuse
+
+`build:` can take a full block instead of a bare path, and multiple services
+can share one image without rebuilding it twice:
+
+```yaml
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    command: node worker.js       # overrides the image's CMD for this service only
+```
+
+`command:` overriding the image's `CMD` is how one image backs two services
+with different jobs — `web` runs the default `CMD` (the HTTP server),
+`worker` runs the same image with `command: node worker.js` instead, no
+second Dockerfile needed.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Inside the web container, code connects to "localhost:5432" expecting the db service. What happens?',
+      options: [
+        'Connects fine — Compose rewrites localhost automatically',
+        'Fails — localhost inside a container means that container itself, not a sibling service. It should connect to "db:5432"',
+        'Connects, but only in detached mode',
+        'Works only if ports: is set on db',
+      ],
+      answer: 1,
+      explain: 'Every container has its own network namespace and its own localhost. Reach another service by its Compose key, e.g. db, not localhost.',
+    },
+    {
+      q: 'db has no healthcheck: block. What does depends_on: db: condition: service_healthy do?',
+      options: [
+        'Waits indefinitely for health, since none is defined',
+        'Falls back to service_started behaviour automatically',
+        'Compose errors at startup — service_healthy needs a healthcheck defined on the target service',
+        'Waits for a fixed 30 seconds',
+      ],
+      answer: 2,
+      explain: 'service_healthy is meaningless without a healthcheck: block to evaluate. Compose reports a configuration error rather than guessing.',
+    },
+    {
+      q: 'db crashes and restarts an hour after `up`. Does depends_on restart or pause the web service?',
+      options: [
+        'Yes, web is automatically restarted',
+        'No — depends_on only orders startup at `up` time. A later crash/restart of db is not tracked by it',
+        'Yes, but only if restart: always is set on web',
+        'Compose pauses the whole project until db is healthy again',
+      ],
+      answer: 1,
+      explain: 'depends_on is a startup-ordering tool, not a runtime supervisor. Reconnect handling for a database that disappears mid-run is still the app\'s job.',
+    },
+  ]}
+/>
+
+Next: keeping secrets out of the file, and running different setups from one base file.

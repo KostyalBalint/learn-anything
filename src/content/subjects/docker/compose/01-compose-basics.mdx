@@ -1,0 +1,80 @@
+---
+title: Compose basics
+order: 1
+summary: One YAML file instead of a wall of docker run flags — and the commands that drive it.
+---
+
+import Diagram from '../../../../components/Diagram.astro';
+
+Every flag from the previous pages — `-p`, `-e`, `-v`, `--network`,
+`--restart` — has to be retyped identically every time you start a container
+by hand, and multiplied across every container in an app. **Compose**
+replaces that with one declarative file, `compose.yaml`, checked into the
+repo next to the code it runs.
+
+```yaml
+# compose.yaml
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      LOG_LEVEL: debug
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d        # build (if needed) + start, detached
+docker compose ps           # this project's containers
+docker compose logs -f web  # follow one service's logs
+docker compose down         # stop and remove containers + the network
+```
+
+That maps directly onto what you already know:
+
+| Compose key | Equivalent to |
+| --- | --- |
+| `build: .` | `docker build .` (using the Dockerfile in this directory), run automatically before `up` if the image doesn't exist yet |
+| `image: nginx:1.27` | Skip the build, pull this image instead — use one or the other, not both |
+| `ports: ["8080:80"]` | `docker run -p 8080:80` |
+| `environment:` | `docker run -e ...`, once per key instead of once per flag |
+| `restart: unless-stopped` | `docker run --restart unless-stopped` |
+| `volumes:` | `docker run -v ...` — named volumes and bind mounts both work, same syntax as the CLI |
+
+## What `up` actually does
+
+<Diagram
+  caption="One command replaces: create a network, build or pull, create each container, attach it to the network, start it."
+  chart={`flowchart TD
+  cmd["docker compose up -d"] --> net["create project network\n(if missing)"]
+  net --> build["build/pull image\nper service"]
+  build --> create["create container\nper service"]
+  create --> attach["attach each to\nthe project network"]
+  attach --> start["start containers"]`}
+/>
+
+That project network is the detail that matters most: every service in the
+file lands on **the same Compose-created network** automatically, with
+DNS-based name resolution between them — the "user-defined bridge" behaviour
+from [networking &amp; volumes](../04-networking-and-volumes), for free,
+without a `docker network create` step. A service reaches another one simply
+by its key in the file — `web` can open a connection to `db:5432` with no
+extra config, which is the payoff explored on the next page.
+
+## The project name
+
+Compose derives a **project name** from the containing directory unless you
+override it (`-p myproj` or a `name:` key in the file). Every resource it
+creates — containers, network, volumes — is prefixed with it. That's how
+`docker compose down` in one directory can find and tear down exactly the
+resources `up` created there, and why running the same compose file from two
+different directory names accidentally spins up two independent copies of
+everything.
+
+`down` (remove containers + network) is not the same as `stop` (just stop the
+containers, keep them around) — `down -v` goes one step further and also
+removes named volumes, which is the one flag combination that deletes data,
+so it isn't the default.
+
+Next: more than one service, actually talking to each other.

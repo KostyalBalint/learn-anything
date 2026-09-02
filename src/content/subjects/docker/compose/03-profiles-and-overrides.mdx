@@ -1,0 +1,123 @@
+---
+title: Environments, profiles, and overrides
+order: 3
+summary: One compose.yaml, many environments — .env files, optional services, and layered override files.
+---
+
+import Flashcard from '../../../../components/Flashcard';
+
+A single `compose.yaml` checked into the repo is meant to be shared by
+everyone — but "everyone" still needs different secrets, and dev usually
+wants tools prod doesn't. Compose has three separate mechanisms for that, and
+they solve different problems.
+
+## `.env` files: values, not structure
+
+A `.env` file next to `compose.yaml` is loaded automatically and its values
+substitute into `${VAR}` references in the file — it changes *values*, never
+the file's shape:
+
+```bash
+# .env (gitignored — real secrets, per machine)
+POSTGRES_PASSWORD=hunter2
+```
+
+```yaml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+```
+
+`.env` belongs in `.gitignore`; commit a `.env.example` with the keys but
+dummy values instead, so the file's *shape* is documented without leaking
+anyone's real secrets. A service's `env_file:` key does something related but
+distinct — it loads a whole file's worth of variables *into that container's
+environment*, rather than substituting into the YAML.
+
+## Profiles: services that only run on request
+
+`--profile` marks a service as opt-in instead of always started by `up`:
+
+```yaml
+services:
+  web:
+    build: .
+    # no profile: always starts with plain `docker compose up`
+
+  pgadmin:
+    image: dpage/pgadmin4
+    profiles: ["debug"]
+```
+
+```bash
+docker compose up -d                    # web only
+docker compose --profile debug up -d    # web + pgadmin
+```
+
+This is how one file serves both "just run the app" and "run the app plus
+the admin UI I only want open occasionally" — without maintaining a second,
+mostly-duplicate compose file for the debug tooling.
+
+## Override files: layering, not duplicating
+
+Compose merges multiple `-f` files in order, later files overriding or
+extending earlier ones field-by-field — not replacing the whole service.
+`docker compose up` alone already auto-loads `compose.yaml` +
+`compose.override.yaml` if the latter exists, which is exactly the dev-only
+layer:
+
+```yaml
+# compose.override.yaml (dev — loaded automatically, usually gitignored)
+services:
+  web:
+    volumes:
+      - .:/app          # bind-mount source for live reload
+    environment:
+      LOG_LEVEL: debug
+```
+
+```yaml
+# compose.prod.yaml (explicit opt-in)
+services:
+  web:
+    restart: always
+```
+
+```bash
+docker compose up -d                                       # base + override (dev)
+docker compose -f compose.yaml -f compose.prod.yaml up -d   # base + prod, override skipped
+```
+
+The base file stays the single source of truth for what the app *is*
+(services, images, how they connect); override files only adjust *how* it
+runs in a given environment. That split is what keeps a team's `compose.yaml`
+usable by everyone — no `if dev then` branches inside it, no prod-only
+service definitions someone has to remember to strip out locally.
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'What does a .env file next to compose.yaml actually do?',
+      back: 'Supplies values that substitute into ${VAR} references in the YAML. It changes values, not the file\'s structure — that\'s what override files are for.',
+    },
+    {
+      front: 'A service has profiles: ["debug"]. Does plain `docker compose up` start it?',
+      back: 'No. A profiled service only starts when that profile is explicitly requested, e.g. --profile debug up.',
+    },
+    {
+      front: 'You run `docker compose up` with a compose.override.yaml present. Do you need to pass -f for it?',
+      back: 'No — compose.override.yaml is loaded automatically alongside compose.yaml if it exists in the same directory. Any other override file needs an explicit -f.',
+    },
+    {
+      front: 'Why keep environment-specific settings in override files instead of editing compose.yaml directly?',
+      back: 'compose.yaml stays the shared source of truth for what the app is; override files layer in how it runs per environment (dev bind-mounts, prod restart policy) without branching logic inside the base file.',
+    },
+  ]}
+/>
+
+That's the core of Docker and Compose: images and layers, containers and
+their lifecycle, networking and volumes, and composing several containers
+into one declared, reproducible system.

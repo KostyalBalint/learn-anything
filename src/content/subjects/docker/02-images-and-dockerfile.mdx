@@ -1,0 +1,131 @@
+---
+title: Images and the Dockerfile
+order: 2
+summary: How a Dockerfile becomes layers, why instruction order controls your build cache, and how tags actually work.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Quiz from '../../../components/Quiz';
+
+A **Dockerfile** is a recipe: a sequence of instructions, each producing one
+read-only **layer**. Docker stacks the layers to form the image's filesystem,
+using a union filesystem (overlay2 on Linux) so it *looks* like one tree even
+though it's built from many.
+
+```dockerfile
+FROM node:20-slim
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY . .
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+<Diagram
+  caption="Each instruction adds a layer. Layers are content-addressed and shared across images that produce the same bytes."
+  chart={`flowchart BT
+  base["FROM node:20-slim"] --> wd["WORKDIR /app"]
+  wd --> cp1["COPY package*.json"]
+  cp1 --> run["RUN npm ci"]
+  run --> cp2["COPY . ."]
+  cp2 --> cmd["CMD [...]  (metadata only)"]`}
+/>
+
+## Why instruction order is the whole trick
+
+Docker caches each layer, keyed on the instruction *and* its build context
+(for `COPY`/`ADD`, that's a hash of the files copied). On a rebuild, it walks
+the Dockerfile top to bottom and reuses cached layers until the first one that
+changed — every instruction *after* that point is rebuilt from scratch, even
+if its own inputs didn't change.
+
+That's why the Dockerfile above copies `package.json` and runs `npm ci`
+*before* copying the rest of the source. Edit a source file and:
+
+- `COPY package*.json` — cache hit, nothing changed.
+- `RUN npm ci` — cache hit, its input (the copied package files) is identical.
+- `COPY . .` — cache miss, your source changed.
+- Everything after — rebuilt.
+
+Flip the two `COPY` instructions and *every* code edit reinstalls the entire
+`node_modules` tree, because `COPY . .` would now come first and invalidate
+everything below it on every single change. Order instructions from
+**least-frequently-changing to most-frequently-changing**.
+
+## The other instructions you'll actually use
+
+| Instruction | Does |
+| --- | --- |
+| `FROM` | Picks the base image. Must be the first instruction (aside from `ARG` before it). |
+| `WORKDIR` | Sets the working directory for everything after it — creates it if missing. Prefer this over `RUN cd ...`, which doesn't persist between instructions. |
+| `COPY` | Copies files from the build context into the image. `ADD` does this too, plus URL fetching and tar auto-extraction — prefer `COPY` unless you need those. |
+| `RUN` | Executes a command *at build time* and commits the result as a layer. |
+| `ENV` | Sets an environment variable, baked into the image and inherited by containers. |
+| `EXPOSE` | Documents which port the app listens on. Purely informational — it does not publish the port (that's `docker run -p`). |
+| `CMD` | The default command for a container started from this image. Overridable with `docker run <image> <other-command>`. |
+| `ENTRYPOINT` | Like `CMD`, but harder to override — arguments passed to `docker run` are appended to it rather than replacing it. |
+
+`.dockerignore`, next to the Dockerfile, excludes paths from the build context
+(same syntax as `.gitignore`). Skip `node_modules/`, `.git/`, and build
+artifacts — anything in the context gets sent to the daemon and is a
+candidate to bust your `COPY . .` cache layer.
+
+## Building and tagging
+
+```bash
+docker build -t myapp:1.4 .
+docker build -t myapp:1.4 -t myapp:latest .   # tag once, name twice
+docker push myapp:1.4
+```
+
+A **tag** is just a mutable pointer to an image ID — `myapp:1.4` and
+`myapp:latest` can point at the same image or drift apart the moment you
+rebuild and re-tag only one of them. `latest` is not "the newest version"; it
+is only whatever was last tagged `latest`, which is why pinning a specific tag
+(or better, a content digest, `myapp@sha256:...`) matters anywhere
+reproducibility matters — a CI pipeline or a production deploy.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'You reorder a Dockerfile so `COPY . .` comes before `RUN npm ci`. What happens on the next code-only change?',
+      options: [
+        'Nothing changes — cache behaves the same regardless of order',
+        'The npm ci layer now reruns on every code change, since it comes after the now-earlier COPY . .',
+        'The build fails',
+        'Only the changed files are recopied, everything else is cached',
+      ],
+      answer: 1,
+      explain: 'Cache invalidates from the first changed layer onward. Put COPY . . before npm ci and every source edit invalidates the install step too.',
+    },
+    {
+      q: 'What does EXPOSE 3000 actually do?',
+      options: [
+        'Publishes port 3000 to the host',
+        'Nothing — it is purely documentation for anyone reading the Dockerfile',
+        'Opens a firewall rule on port 3000',
+        'Sets the container\'s listening port',
+      ],
+      answer: 1,
+      explain: 'EXPOSE is metadata only. Publishing a port to the host is docker run -p host:container.',
+    },
+    {
+      q: 'Two images are both tagged myapp:latest at different times. What is true?',
+      options: [
+        'They are guaranteed to be the same image',
+        'latest always means the most recently built image on the registry',
+        'The tag simply points at whichever image was last tagged latest — nothing guarantees recency or identity across builds',
+        'Docker refuses to reuse the latest tag',
+      ],
+      answer: 2,
+      explain: 'Tags are mutable pointers. Pin a specific version tag or a digest anywhere you need reproducibility.',
+    },
+  ]}
+/>
+
+Next: turning an image into a running, reachable container.

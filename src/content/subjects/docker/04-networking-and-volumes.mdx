@@ -1,0 +1,140 @@
+---
+title: Networking and volumes
+order: 4
+summary: How containers reach each other, and how data survives a container that doesn't.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Quiz from '../../../components/Quiz';
+
+## Networking
+
+Every container gets a network namespace — its own interfaces, routing table,
+and loopback, isolated from the host's. By default it's attached to Docker's
+built-in `bridge` network, a private subnet on the host (`docker network ls`
+will show it).
+
+<Diagram
+  caption="The default bridge has no DNS between containers. A user-defined bridge does."
+  chart={`flowchart TB
+  subgraph host["Host"]
+    subgraph def["default bridge"]
+      a1[container A]
+      a2[container B]
+    end
+    subgraph ub["user-defined bridge: appnet"]
+      c1[web]
+      c2[db]
+    end
+  end
+  a1 -.->|only by IP| a2
+  c1 -->|resolves 'db'| c2`}
+/>
+
+That distinction — default bridge vs. a **user-defined** one — is the single
+most important networking fact for running more than one container:
+
+```bash
+docker network create appnet
+docker run -d --name db   --network appnet postgres:16
+docker run -d --name web  --network appnet myapp
+```
+
+On a user-defined network, Docker runs an embedded DNS server, so `web` can
+connect to `db` by container **name** — no hardcoded IPs, and it keeps
+working even if `db` restarts and gets a new address. The default `bridge`
+network does *not* give you this; containers on it can only reach each other
+by IP. In practice, always create a network for anything with more than one
+container talking to itself — Compose, which you'll meet next, does this for
+you automatically.
+
+| Driver | Use case |
+| --- | --- |
+| `bridge` (default network type) | The normal case: an isolated private network, containers reachable by name if it's user-defined. |
+| `host` | No isolation — the container shares the host's network namespace directly. Faster, but no port remapping and no isolation. |
+| `none` | No networking at all. |
+| `overlay` | Multi-host networking (Swarm/orchestrated setups) — out of scope here. |
+
+Publishing with `-p 8080:80` is unrelated to inter-container reachability —
+it's specifically the host-to-container path. Two containers on the same
+user-defined network can always reach each other's container ports directly,
+published or not.
+
+## Volumes: making data outlive the container
+
+A container's writable layer dies with the container. Anything a database or
+upload directory needs to survive a restart, redeploy, or crash has to live
+**outside** that layer.
+
+<Diagram
+  caption="A named volume is managed by Docker; a bind mount is just a host path you point at."
+  chart={`flowchart LR
+  subgraph ctr["container"]
+    fs["/var/lib/postgresql/data"]
+  end
+  vol[("named volume\npgdata")] --> fs
+  bind["host path\n./local-config"] -.->|bind mount, alt.| fs`}
+/>
+
+| Mechanism | What it is | Use for |
+| --- | --- | --- |
+| Named volume (`-v pgdata:/var/lib/postgresql/data`) | Storage Docker creates and manages, outside any container's writable layer. Location is an implementation detail you don't reference directly. | Databases, anything Docker should own the lifecycle of. |
+| Bind mount (`-v ./config:/app/config`) | A specific host path, mounted straight through. | Local dev — live-editing source on the host and seeing it instantly in the container. Config files. |
+| `tmpfs` mount | In-memory only, never touches disk. | Secrets or scratch data you explicitly don't want persisted. |
+
+```bash
+docker volume create pgdata
+docker run -d --name db -v pgdata:/var/lib/postgresql/data postgres:16
+
+# the volume survives this:
+docker rm -f db
+
+# ...and a new container can pick up right where the old one left off:
+docker run -d --name db -v pgdata:/var/lib/postgresql/data postgres:16
+```
+
+The volume is a separate object from the container — `docker rm` alone never
+deletes it. It's only cleaned up if you name it explicitly (`docker volume rm
+pgdata`) or run `docker volume prune`. That's a deliberate safety line:
+removing a container should never be able to silently destroy your data.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Two containers are both on the default (unnamed) bridge network. Can one reach the other by container name?',
+      options: [
+        'Yes, Docker DNS resolves container names on any bridge network',
+        'No — the default bridge has no embedded DNS; only user-defined networks get name resolution',
+        'Only if -p was used on both',
+        'Only if they share a volume',
+      ],
+      answer: 1,
+      explain: 'Create a user-defined network (or use Compose, which does this automatically) to get name-based service discovery.',
+    },
+    {
+      q: 'You run docker rm -f db on a container using a named volume. What happens to the volume\'s data?',
+      options: [
+        'Deleted immediately along with the container',
+        'Deleted after 24 hours unless referenced',
+        'Untouched — the volume is a separate object and survives until explicitly removed',
+        'Moved to a backup automatically',
+      ],
+      answer: 2,
+      explain: 'A named volume outlives the container that used it. It has to be removed explicitly (docker volume rm) or pruned.',
+    },
+    {
+      q: 'Why prefer a bind mount over a named volume for local development source code?',
+      options: [
+        'Bind mounts are faster to create',
+        'A bind mount points at an exact host path, so edits on the host show up in the container instantly',
+        'Named volumes cannot be written to by the container',
+        'There is no difference',
+      ],
+      answer: 1,
+      explain: 'A bind mount is literally the host path mounted through — ideal for live-editing. A named volume\'s storage location is managed by Docker, not something you edit directly.',
+    },
+  ]}
+/>
+
+Next: keeping images small and builds fast with multi-stage builds.
