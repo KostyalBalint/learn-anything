@@ -1,0 +1,157 @@
+---
+title: Scope, closures, and decorators
+order: 4
+summary: The LEGB lookup order, the loop-variable trap every closure walks into, and what @decorator actually does.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+Every name lookup in Python walks the same four scopes, in the same order,
+stopping at the first match:
+
+<Diagram
+  caption="LEGB: Local, Enclosing, Global, Built-in. A name resolves at the first scope that defines it."
+  chart={`flowchart TD
+  L["Local\n(current function)"] --> E["Enclosing\n(any outer function)"]
+  E --> G["Global\n(module top level)"]
+  G --> B["Built-in\n(len, range, print, ...)"]
+  L -.->|found here| stop1(["use this binding"])
+  E -.->|found here| stop2(["use this binding"])
+  G -.->|found here| stop3(["use this binding"])
+  B -.->|found here| stop4(["use this binding"])`}
+/>
+
+Assignment inside a function makes a name **local** to that function by
+default — even if a same-named variable exists at an outer scope, even if
+the assignment happens after a read that looks like it should hit the outer
+one. That mismatch is what `global` and `nonlocal` exist to override:
+
+```python
+count = 0
+
+def outer():
+    total = 0
+    def inc():
+        nonlocal total   # without this, `total += 1` below is UnboundLocalError
+        total += 1
+        return total
+    return inc
+```
+
+`nonlocal` reaches into the nearest **enclosing function** scope.  `global`
+reaches straight to module scope, skipping any enclosing functions in
+between. Neither exists for reading — only assignment needs them, because
+reads already fall through the LEGB chain on their own.
+
+## The closure trap: loop variables are not snapshotted
+
+This is the single most common closure bug, and it survives even in
+experienced hands because the code reads as if it should obviously work:
+
+```python
+funcs = [lambda: i for i in range(3)]
+[f() for f in funcs]        # [2, 2, 2] -- not [0, 1, 2]
+```
+
+A closure captures the **variable**, not the value it held at creation time.
+All three lambdas share the same `i`, and by the time any of them runs, the
+loop has finished and `i` is `2`. This is *not* unique to lambdas — a `def`
+created in a loop body has the exact same problem.
+
+Two fixes, both forcing the value to be captured at creation time instead of
+at call time:
+
+```python
+# 1. Default argument — evaluated once, at function-definition time
+funcs = [lambda i=i: i for i in range(3)]
+
+# 2. A factory function — gives each closure its own local `i`
+def make(i):
+    return lambda: i
+
+funcs = [make(i) for i in range(3)]
+```
+
+## What `@decorator` actually does
+
+A decorator is just a function that takes a function and returns a
+(usually different) function. `@decorator` above a `def` is sugar for
+reassigning the name after defining it:
+
+```python
+@decorator
+def f():
+    ...
+
+# is exactly:
+def f():
+    ...
+f = decorator(f)
+```
+
+A decorator **taking arguments** needs one more layer — the outer call
+produces the actual decorator, which then wraps the function:
+
+```python
+import functools
+
+def retry(times):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            for attempt in range(times):
+                try:
+                    return fn(*args, **kwargs)
+                except Exception:
+                    if attempt == times - 1:
+                        raise
+        return wrapper
+    return decorator
+
+@retry(3)
+def flaky():
+    ...
+```
+
+`@retry(3)` calls `retry(3)` immediately, which returns `decorator` — *that*
+is what actually wraps `flaky`. Skip `functools.wraps` and `wrapper` silently
+replaces `flaky`'s `__name__`, `__doc__`, and signature everywhere —
+tracebacks, `help()`, and introspection-based tools (like most web
+frameworks' routers) all see `wrapper` instead of the function you wrote.
+
+Stacking decorators applies bottom-up but executes outside-in:
+
+```python
+@a
+@b
+def f(): ...
+
+# equivalent to: f = a(b(f))
+# so at call time: a's wrapper runs first, then calls into b's wrapper, then f
+```
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'What does `nonlocal` do that a plain read does not need?',
+      back: "It lets an assignment inside a nested function target the enclosing function's variable, instead of implicitly creating a new local one.",
+    },
+    {
+      front: 'Why does `[lambda: i for i in range(3)]` produce three functions that all return 2?',
+      back: 'A closure captures the variable itself, not a snapshot of its value. All three lambdas share one `i`, which is 2 by the time any of them is called.',
+    },
+    {
+      front: 'What does `functools.wraps(fn)` actually fix?',
+      back: "Without it, the wrapper function returned by a decorator has its own __name__, __doc__, and signature — wraps() copies the original function's metadata onto it.",
+    },
+    {
+      front: 'For `@a` `@b` `def f(): ...`, what runs first when f() is called?',
+      back: "a's wrapper code runs first (outermost), which then calls into b's wrapper, which then calls the original f — even though b was applied to f before a was.",
+    },
+  ]}
+/>
+
+Next: what actually stops two Python threads from running your code at the
+same instant, and when that matters.

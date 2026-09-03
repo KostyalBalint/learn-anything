@@ -1,0 +1,155 @@
+---
+title: Iterators, generators, and itertools
+order: 3
+summary: The protocol every for-loop relies on, why yield changes memory behavior completely, and the toolbox built around it.
+---
+
+import Quiz from '../../../components/Quiz';
+
+A `for` loop doesn't know anything special about lists, dicts, or files — it
+only knows one protocol, and every iterable implements it.
+
+```python
+it = iter(obj)          # __iter__() -- get an iterator
+while True:
+    try:
+        item = next(it)  # __next__() -- get the next value
+    except StopIteration:
+        break
+    ...                  # loop body
+```
+
+Anything with `__iter__` and `__next__` can stand in for `obj`. Writing that
+by hand is mostly boilerplate:
+
+```python
+class Countdown:
+    def __init__(self, start):
+        self.n = start
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.n <= 0:
+            raise StopIteration
+        self.n -= 1
+        return self.n + 1
+```
+
+## `yield` writes the class for you
+
+A **generator function** — any function containing `yield` — compiles to an
+object that implements this same protocol automatically. Calling it doesn't
+run the body; it returns a paused generator that runs up to the next `yield`
+each time `next()` is called on it.
+
+```python
+def countdown(start):
+    n = start
+    while n > 0:
+        yield n
+        n -= 1
+```
+
+Same behavior as `Countdown` above, in four lines instead of a class. The
+function's local state — `n`, and its position in the loop — is preserved
+across suspensions, which is the part that would otherwise need to become
+instance attributes by hand.
+
+## Why this changes memory behavior
+
+A generator produces values **one at a time, on demand** — it never
+materializes a full collection. Swap a list comprehension for a generator
+expression and the difference isn't style, it's whether the whole result
+exists in memory at once:
+
+```python
+squares = [x * x for x in range(10_000_000)]     # builds a 10M-int list, all at once
+total = sum(x * x for x in range(10_000_000))     # one int in flight at a time
+```
+
+The second line holds one value at a time no matter how large the range is —
+`sum()` pulls, squares, adds, and discards, on repeat. This is also why
+chaining generator expressions (`sum(x for x in (y*y for y in data))`)
+composes for free: nothing downstream forces anything upstream to finish
+first.
+
+One sharp edge worth knowing: since Python 3.7 ([PEP
+479](https://peps.python.org/pep-0479/)), a `StopIteration` raised *inside* a
+generator's body no longer silently ends the generator — it's converted into
+a `RuntimeError`. Before that change, an accidental `StopIteration` deep in
+a call stack could make a generator stop early with no error at all, which
+was a genuinely hard bug to track down.
+
+## The itertools toolbox
+
+`itertools` is the standard library's set of lazy, composable building
+blocks — all of them return iterators, none of them build an intermediate
+list.
+
+| Function | Does |
+| --- | --- |
+| `chain(*iterables)` | Walks multiple iterables as if they were one, lazily. |
+| `islice(it, stop)` | Slices an iterator (`it[:stop]` doesn't work — iterators aren't subscriptable). |
+| `groupby(it, key)` | Groups **consecutive** items sharing a key — needs input pre-sorted by that key. |
+| `tee(it, n)` | Splits one iterator into `n` independent ones — each unconsumed branch buffers in memory. |
+| `product`, `combinations`, `permutations` | Lazy Cartesian product and combinatorics, without nested loops. |
+
+The `groupby` caveat trips people up constantly: it groups adjacent
+duplicates, not all duplicates. `groupby(sorted(data, key=k), key=k)` is
+correct; `groupby(data, key=k)` on unsorted `data` silently produces one
+group per unsorted run, not one group per key.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'What single feature turns a normal function into a generator function?',
+      options: [
+        'A `return` statement inside a loop',
+        'The presence of a `yield` statement anywhere in the body',
+        'A type annotation of `-> Iterator`',
+        'Calling it with `next()` instead of `()`',
+      ],
+      answer: 1,
+      explain: 'Any `yield` in a function body makes every call to it return a generator object, regardless of return statements or annotations.',
+    },
+    {
+      q: 'sum(x*x for x in range(10**8)) vs sum([x*x for x in range(10**8)]) — what differs?',
+      options: [
+        'Nothing, they produce different results',
+        'The generator version is always slower',
+        'The list version briefly holds all 100M results in memory; the generator version holds one at a time',
+        'The bracketed version does not compile',
+      ],
+      answer: 2,
+      explain: 'Both compute the same sum, but the list comprehension must fully materialize before sum() can start, while the generator expression streams values one at a time.',
+    },
+    {
+      q: 'A generator raises StopIteration from inside its own body (not by finishing). What happens, on Python 3.7+?',
+      options: [
+        'The generator ends silently, as if it had finished normally',
+        'It propagates as a RuntimeError',
+        'It restarts the generator from the beginning',
+        'It is ignored and the next value is skipped',
+      ],
+      answer: 1,
+      explain: 'PEP 479 made this a RuntimeError precisely because the old silent-stop behavior hid bugs where an unrelated StopIteration ended a generator early.',
+    },
+    {
+      q: 'Why does itertools.groupby(data, key=k) often "not work" on data that has duplicate keys scattered through it?',
+      options: [
+        'groupby only accepts lists, not arbitrary iterables',
+        'groupby requires the key function to return a hashable value',
+        'groupby only groups consecutive matching items — non-sorted input scatters matches across many one-off groups',
+        'groupby mutates data in place, breaking the second pass',
+      ],
+      answer: 2,
+      explain: "groupby is a streaming, single-pass grouping of adjacent items. It doesn't look ahead or build a hash table, so unsorted input needs sorted(data, key=k) first.",
+    },
+  ]}
+/>
+
+Next: what a closure actually captures, and why that loop variable never does
+what it looks like it does.

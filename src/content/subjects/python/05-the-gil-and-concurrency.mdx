@@ -1,0 +1,114 @@
+---
+title: The GIL and concurrency models
+order: 5
+summary: Why threading in CPython doesn't do what you'd expect, and how to actually choose between threads, processes, and asyncio.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Quiz from '../../../components/Quiz';
+
+CPython's **Global Interpreter Lock (GIL)** allows only one thread to execute
+Python bytecode at any given instant, no matter how many CPU cores the
+machine has. It exists because CPython's memory management — reference
+counting on every object, on every assignment — isn't thread-safe by itself;
+the GIL is the one big lock that makes it safe without needing a lock around
+every object.
+
+<Diagram
+  caption="Threads take turns holding the one GIL. Processes each get their own interpreter and GIL, so they run truly in parallel."
+  chart={`flowchart TB
+  subgraph T["threading -- one process, one GIL"]
+    direction LR
+    t1["Thread 1\n(holds GIL)"] --> core1[CPU core]
+    t2["Thread 2\n(waiting)"] -.-> core1
+    t3["Thread 3\n(waiting)"] -.-> core1
+  end
+  subgraph M["multiprocessing -- separate processes"]
+    direction LR
+    p1["Process 1\n(own interpreter + GIL)"] --> coreA[CPU core A]
+    p2["Process 2\n(own interpreter + GIL)"] --> coreB[CPU core B]
+  end`}
+/>
+
+That sounds like threads are pointless in Python — they're not, because the
+GIL is **released** around blocking I/O (network calls, disk reads, `time.sleep`)
+and around long native calls in C extensions (numpy, most compiled
+libraries). A thread doing nothing but waiting on a socket isn't holding the
+GIL, so other threads run freely during that wait.
+
+## Picking a model
+
+| Model | Good for | Why |
+| --- | --- | --- |
+| `threading` | I/O-bound work: network calls, disk, subprocess waits | The GIL releases during blocking I/O, so waiting threads overlap instead of serializing. |
+| `multiprocessing` | CPU-bound work: parsing, number-crunching, image processing | Each process gets its own interpreter and its own GIL — this is the only way pure-Python code uses more than one core at once. |
+| `asyncio` | Very high volumes of concurrent I/O (thousands of open connections) | Single thread, cooperative scheduling at every `await` — no GIL contention, no per-thread OS overhead, but every library on the path has to be async-aware. |
+
+The costs run the opposite direction: `multiprocessing` gets real
+parallelism but pays for it in process startup time and in serializing
+(`pickle`) every argument and return value across the process boundary —
+sharing memory between processes is the exception, not the default.
+`asyncio` avoids that cost entirely but only works with libraries that speak
+`async`/`await`; a single blocking call anywhere in an async codebase stalls
+every other coroutine sharing that thread.
+
+A CPU-bound function inside a library that releases the GIL for its native
+computation (numpy's array math, for instance) is the one case where
+`threading` *does* speed up CPU-bound work — the parallelism is happening in
+C, outside the GIL's reach, while Python's own bytecode loop stays
+single-threaded.
+
+One more moving target worth knowing about: [PEP
+703](https://peps.python.org/pep-0703/) introduced an optional
+**free-threaded** CPython build (available as of 3.13) that can run without
+the GIL at all. It's opt-in and still maturing — most third-party C
+extensions haven't caught up yet — but it's the first real crack in an
+assumption that's held since CPython 1.x.
+
+<Quiz
+  client:visible
+  questions={[
+    {
+      q: 'Why does spawning more threads not speed up a pure-Python CPU-bound loop in standard CPython?',
+      options: [
+        'Threads in Python always run slower than a single thread',
+        'The GIL only lets one thread execute Python bytecode at a time, so CPU-bound threads take turns instead of running in parallel',
+        'Python threads are actually implemented as coroutines',
+        'The operating system refuses to schedule more than one Python thread',
+      ],
+      answer: 1,
+      explain: 'CPU-bound Python bytecode never releases the GIL voluntarily, so multiple such threads on multiple cores still execute one at a time.',
+    },
+    {
+      q: 'A function spends 95% of its time waiting on HTTP responses. Best fit?',
+      options: ['multiprocessing', 'threading or asyncio', 'Neither — rewrite it in C', 'A single blocking loop is already optimal'],
+      answer: 1,
+      explain: 'I/O waits release the GIL (threading) or yield control at await points (asyncio), so either lets other work happen during the wait.',
+    },
+    {
+      q: 'Why does multiprocessing typically cost more per task than threading, even for work it parallelizes well?',
+      options: [
+        'It does not — they have identical overhead',
+        'Each process needs its own interpreter startup, and arguments/results must be serialized (pickled) across the process boundary',
+        'multiprocessing cannot use more than one core either',
+        'It requires a paid license for more than one process',
+      ],
+      answer: 1,
+      explain: 'Processes do not share memory by default, so multiprocessing pays for interpreter startup and pickling on every call, in exchange for true parallelism.',
+    },
+    {
+      q: 'What breaks an asyncio program that mixes in one accidental blocking call (e.g. a plain requests.get)?',
+      options: [
+        'Nothing — asyncio automatically runs it on a background thread',
+        'It raises a SyntaxError at import time',
+        'That call blocks the single event-loop thread, stalling every other coroutine until it returns',
+        'It silently returns None instead of the real result',
+      ],
+      answer: 2,
+      explain: "asyncio's concurrency comes entirely from cooperative yielding at await points. A blocking call never yields, so it freezes the whole event loop for its duration.",
+    },
+  ]}
+/>
+
+Next: what a class instance is actually made of, and how to make a lot of
+them without a lot of memory.

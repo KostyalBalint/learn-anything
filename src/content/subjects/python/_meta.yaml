@@ -1,0 +1,7 @@
+# Subject-level metadata. One per subject folder.
+# Files starting with `_` are never treated as content pages.
+title: Python nuances
+summary: Beyond the syntax — identity vs equality, which container actually fits, the GIL, and what closures secretly capture.
+order: 5
+# Any Lucide icon name: https://lucide.dev/icons
+icon: braces

@@ -1,0 +1,125 @@
+---
+title: __slots__, descriptors, and lean objects
+order: 6
+summary: What a plain class instance actually costs, and when a namedtuple, dataclass, or __slots__ is the better fit.
+---
+
+import Chart from '../../../components/Chart';
+
+A plain class instance isn't just its attributes — by default, every
+instance carries its own `__dict__` to hold them, because Python assumes you
+might attach a new attribute to it at any time:
+
+```python
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+p = Point(1, 2)
+p.__dict__          # {'x': 1, 'y': 2}
+p.z = 3              # totally legal — __dict__ just grows
+```
+
+That flexibility has a real cost: a dict, even a small one, carries hash
+table overhead that dwarfs the two numbers it's holding. Multiply that by
+a few million instances — parsed records, graph nodes, simulation particles
+— and the per-dict overhead becomes the dominant cost, not the data.
+
+## `__slots__` trades flexibility for a fixed layout
+
+Declaring `__slots__` tells CPython the complete, fixed set of attribute
+names up front, so it can allocate a small fixed-size slot per instance
+instead of a `__dict__`:
+
+```python
+class Point:
+    __slots__ = ('x', 'y')
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+p = Point(1, 2)
+p.z = 3              # AttributeError — z isn't a declared slot
+```
+
+The trade-offs are real, not just cosmetic: no arbitrary extra attributes,
+no `__dict__` at all (so `vars(p)` fails), and no `__weakref__` unless you
+add it to the slots explicitly. Multiple inheritance from more than one
+class that each define non-empty `__slots__` is also a `TypeError` — CPython
+can't merge two different fixed layouts into one instance.
+
+## Or skip writing the class at all
+
+Two standard-library options generate the boilerplate for you, at the same
+lean-memory shape as a slotted class:
+
+```python
+from typing import NamedTuple
+from dataclasses import dataclass
+
+class Point(NamedTuple):     # immutable, tuple-backed, unpacks like a tuple
+    x: float
+    y: float
+
+@dataclass(frozen=True, slots=True)   # slots= needs Python 3.10+
+class Point:                          # mutable by default; frozen=True locks it
+    x: float
+    y: float
+```
+
+`NamedTuple` is a real tuple underneath — `p[0]`, `x, y = p`, and hashing all
+work for free, but "changing" a field means building a new instance via
+`p._replace(x=5)`. `dataclass` generates `__init__`, `__repr__`, and `__eq__`
+for you over an ordinary (or slotted, with `slots=True`) class, and lets you
+choose mutability explicitly instead of inheriting tuple semantics.
+
+## Picking a record type
+
+| Type | Mutable | Per-instance memory | Arbitrary attrs | Use when |
+| --- | --- | --- | --- | --- |
+| `dict` | yes | highest | yes, any key | Keys are genuinely dynamic — parsed JSON, not a known schema. |
+| plain class | yes | high (owns a `__dict__`) | yes | Need methods and mutability; instance count is small enough that memory doesn't matter. |
+| class with `__slots__` | yes | low | no | Millions of instances, fixed known fields, still need mutability. |
+| `NamedTuple` | no | low | no | A fixed lightweight record, read mostly, fine to replace wholesale. |
+| `dataclass(slots=True)` | your choice | low | no | Fixed fields, want generated `__init__`/`__repr__`/`__eq__`, and slot-level memory. |
+
+## Where `property` actually comes from
+
+The mechanism behind `@property`, and behind ordinary bound methods, is the
+**descriptor protocol** — any object with `__get__` (and optionally
+`__set__`/`__delete__`) defined controls what happens when it's looked up as
+a class attribute. `property` is a small built-in descriptor; a plain
+function is *also* a descriptor, which is the actual mechanism that turns
+`instance.method()` into `Class.method(instance)` — there's no special case
+for methods in attribute lookup, just one general protocol that both use.
+
+## Relative memory footprint
+
+export const footprint = [
+  { type: 'dict record', bytes: 232 },
+  { type: 'plain class', bytes: 152 },
+  { type: 'NamedTuple', bytes: 64 },
+  { type: 'class w/ __slots__', bytes: 56 },
+];
+
+<Chart
+  client:visible
+  type="bar"
+  data={footprint}
+  xKey="type"
+  xLabel="record type (2 fields)"
+  yLabel="approx. bytes per instance"
+  legend={false}
+  series={[{ key: 'bytes', label: 'Approx. bytes per instance' }]}
+/>
+
+Figures above are illustrative and vary by Python version and field count,
+but the shape is consistent: dropping the per-instance `__dict__` is where
+the memory actually goes, whether you do it via `__slots__` directly or pick
+it up for free through `NamedTuple` or `dataclass(slots=True)`.
+
+That's the chapter — identity and mutability, the right container, laziness
+through iterators, what closures capture, the GIL's real effect on
+concurrency, and what an instance is actually made of. The syntax was never
+the hard part; these are.

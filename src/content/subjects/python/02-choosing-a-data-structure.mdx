@@ -1,0 +1,92 @@
+---
+title: Choosing the right data structure
+order: 2
+summary: list vs tuple vs set vs dict vs deque — the Big-O differences that actually matter in practice.
+---
+
+import Chart from '../../../components/Chart';
+
+Every built-in container can technically hold anything, which is exactly why
+"just use a list" is such an easy default to reach for — and such an easy way
+to write an accidentally-quadratic program. The right container is the one
+whose cheap operations match what you actually do most.
+
+## The complexity cheat sheet
+
+| Operation | `list` | `tuple` | `dict` | `set` | `deque` |
+| --- | --- | --- | --- | --- | --- |
+| Index by position | O(1) | O(1) | n/a | n/a | O(n) |
+| Append/pop at the **end** | O(1)* | immutable | n/a | n/a | O(1) |
+| Insert/pop at the **front** | O(n) | immutable | n/a | n/a | O(1) |
+| Membership (`x in c`) | O(n) | O(n) | O(1) avg | O(1) avg | O(n) |
+| Lookup by key | n/a | n/a | O(1) avg | n/a | n/a |
+
+\* amortized — occasionally a full reallocation, but averaged over many
+appends it's constant.
+
+The single most common performance bug in Python code that "should be fast
+enough": testing membership against a `list` in a loop, when a `set` was
+sitting right there.
+
+```python
+allowed = ["gzip", "br", "deflate", "identity", ...]   # grows over time
+if encoding in allowed:      # O(n) — rescans the whole list, every call
+    ...
+
+allowed = {"gzip", "br", "deflate", "identity", ...}   # same data, a set
+if encoding in allowed:      # O(1) average — one hash lookup
+    ...
+```
+
+<Chart
+  client:visible
+  type="line"
+  data={[100, 1_000, 10_000, 100_000, 1_000_000].map((n) => ({ n, list: n, set: 1 }))}
+  xKey="n"
+  xLabel="collection size (n)"
+  yLabel="comparisons for a worst-case membership check"
+  series={[
+    { key: 'list', label: 'list (linear scan)' },
+    { key: 'set', label: 'set (hash lookup)' },
+  ]}
+/>
+
+The gap isn't a rounding error at any realistic size — it's the difference
+between a program that scales and one that quietly falls over the day the
+input grows.
+
+## The other trap: string concatenation in a loop
+
+```python
+out = ""
+for chunk in chunks:
+    out += chunk        # may reallocate and copy everything so far, each time
+
+out = "".join(chunks)   # builds the result once, in one pass
+```
+
+CPython has an optimization that sometimes makes repeated `+=` on a string
+cheap in place, but it's a CPython-only, not-guaranteed implementation
+detail. `"".join(...)` is the version that's fast on every implementation,
+every time, on purpose.
+
+## Picking one
+
+| You need | Reach for | Because |
+| --- | --- | --- |
+| An ordered, mutable sequence | `list` | Cheap indexing and end-append; the general-purpose default. |
+| A fixed record, or something hashable to use as a dict key | `tuple` | Immutable, so it's hashable and safe to share. |
+| Fast membership tests, de-duplication | `set` | O(1) average `in`; no ordering guarantee. |
+| Key → value lookup | `dict` | O(1) average get/set; insertion-ordered since 3.7. |
+| Push/pop at **both** ends (queues, sliding windows, BFS) | `collections.deque` | O(1) at both ends — `list.pop(0)` is O(n). |
+| Large amounts of homogeneous numbers | `array.array`, or `numpy` for real work | Packed, fixed-width storage — no per-element object overhead. |
+| Always-get-the-smallest / a priority queue | `heapq` over a `list` | O(log n) push/pop instead of re-sorting. |
+| A `set` you can safely use as a dict key or in another set | `frozenset` | Immutable, so it's hashable. |
+
+One asterisk worth keeping in mind: `dict` preserving insertion order is
+guaranteed by the language since 3.7 — you can rely on it. `set` preserves
+**no** order at all, insertion or otherwise; two sets with identical elements
+can iterate in different orders across runs, versions, or even hash-randomization
+seeds.
+
+Next: the container that never has to hold all its data at once.

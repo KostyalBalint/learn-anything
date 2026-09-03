@@ -1,0 +1,131 @@
+---
+title: Objects, identity, and mutability
+order: 1
+summary: is vs ==, why default arguments are a trap, and what actually happens when you assign a variable.
+---
+
+import Diagram from '../../../components/Diagram.astro';
+import Flashcard from '../../../components/Flashcard';
+
+In Python, a variable is never a box that holds a value — it's a **name bound
+to an object**. `a = [1, 2, 3]` creates a list object somewhere in memory and
+points the name `a` at it. Assignment never copies:
+
+```python
+a = [1, 2, 3]
+b = a            # b names the SAME object as a
+c = [1, 2, 3]    # c names a DIFFERENT object that happens to be equal
+
+b.append(4)
+a                # [1, 2, 3, 4]  -- a "saw" the mutation, because a and b are one object
+```
+
+<Diagram
+  caption="a and b are two names for one object. c is a separate, merely-equal object."
+  chart={`flowchart LR
+  a["a"] --> obj1["list object\n[1, 2, 3, 4]"]
+  b["b"] --> obj1
+  c["c"] --> obj2["list object\n[1, 2, 3]"]`}
+/>
+
+## `is` vs `==`
+
+`==` asks "do these compare equal" (calls `__eq__`). `is` asks "are these the
+same object" (compares `id()`, effectively a memory address). They agree far
+more often than they should, which is exactly what makes the distinction easy
+to forget:
+
+```python
+a = [1, 2, 3]
+c = [1, 2, 3]
+a == c     # True  -- same contents
+a is c     # False -- different objects
+
+x = 256
+y = 256
+x is y     # True  -- CPython caches small ints -5..256 as singletons
+
+x = 257
+y = 257
+x is y     # implementation detail, NOT guaranteed -- don't rely on it
+```
+
+The `-5..256` cache is a CPython implementation detail, not a language
+guarantee — other implementations (or a future CPython) are free not to do
+it. The only correct uses of `is` are against genuine singletons: `is None`,
+`is True`, `is False`, `is ...`. Never use `is` to compare values.
+
+## Everything is an object — even the function you're defining
+
+This is the one that bites experienced developers, because it looks like a
+scoping bug in a language that clearly evaluates defaults per call:
+
+```python
+def append_item(item, bucket=[]):
+    bucket.append(item)
+    return bucket
+
+append_item(1)   # [1]
+append_item(2)   # [1, 2]        <- same list, reused!
+append_item(3)   # [1, 2, 3]     <- still the same list
+```
+
+`bucket=[]` is evaluated **once**, when the `def` statement runs — not once
+per call. That single list object gets attached to the function object as its
+default, and every call that doesn't pass `bucket` explicitly shares it. The
+fix is the standard idiom: default to `None`, create fresh state inside the
+function body.
+
+```python
+def append_item(item, bucket=None):
+    if bucket is None:
+        bucket = []
+    bucket.append(item)
+    return bucket
+```
+
+The same rule applies to any mutable default — `{}`, `set()`, a custom
+object — and to nothing involving immutable defaults (`0`, `""`, `None`),
+which is why the bug hides so well until someone reaches for a list or dict.
+
+## Mutable vs immutable, at a glance
+
+| Immutable | Mutable |
+| --- | --- |
+| `int`, `float`, `complex`, `bool` | `list` |
+| `str` | `dict` |
+| `tuple` | `set` |
+| `frozenset` | `bytearray` |
+| `bytes` | custom classes (unless you design otherwise) |
+
+Immutability is what makes a value safe to use as a `dict` key or `set`
+member — Python needs a stable hash for the object's lifetime, and a mutable
+container's hash would change out from under it. It's also why sharing a
+`tuple` across threads or callers is safe by construction: nothing can
+mutate it after the fact, so there is nothing to defend against, only
+`list`/`dict`/`set` need that discipline.
+
+<Flashcard
+  client:visible
+  cards={[
+    {
+      front: 'What does `a is b` actually test?',
+      back: 'Object identity — whether a and b are literally the same object in memory (same id()). Not whether they have equal contents.',
+    },
+    {
+      front: 'Why is `def f(bucket=[]):` dangerous?',
+      back: "The default list is created once, when the function is defined, and reused across every call that doesn't override it — mutations from one call leak into the next.",
+    },
+    {
+      front: 'Is `x is y` for two equal ints always True in CPython?',
+      back: 'Only for small ints in the cached range (-5 to 256). Outside that range it depends on implementation details you should never rely on — use `==` for value comparison.',
+    },
+    {
+      front: 'Why must dict keys and set members be immutable?',
+      back: "Their hash must stay constant for their lifetime in the container. A mutable object's hash could change after insertion, which would corrupt the hash table's internal bucketing.",
+    },
+  ]}
+/>
+
+Next: now that identity and mutability are pinned down, which built-in
+container should actually hold your data.
